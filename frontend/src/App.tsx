@@ -47,7 +47,6 @@ export default function App() {
     if (role === 'parent')  setScreen('parent-register');
   };
 
-  // Called by LoginPage after successful authentication
   const handleLoginSuccess = (role: UserRole) => {
     try {
       const stored = sessionStorage.getItem('currentUser');
@@ -164,7 +163,6 @@ export default function App() {
 }
 
 // ── Pending approval screen ──
-// Shows approval message BUT also has a "My Dashboard" bypass button for testing.
 function PendingApproval({
   onBack,
   onGoToDashboard,
@@ -222,10 +220,11 @@ function PendingApproval({
           <button
             onClick={onGoToDashboard}
             style={{
-              width: '100%', padding: '0.72rem', borderRadius: 8, border: '1px solid rgba(251,191,36,0.4)',
+              width: '100%', padding: '0.72rem', borderRadius: 8,
+              border: '1px solid rgba(251,191,36,0.4)',
               background: 'rgba(251,191,36,0.12)', color: '#fbbf24',
-              fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer',
-              transition: 'all 0.2s',
+              fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
+              fontSize: '0.875rem', cursor: 'pointer', transition: 'all 0.2s',
             }}
           >
             My Dashboard →
