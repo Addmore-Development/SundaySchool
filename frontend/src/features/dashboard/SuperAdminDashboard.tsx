@@ -412,7 +412,7 @@ export default function SuperAdminDashboard({
                     { label:'Fed Today',            val:'102', sub:'of 124 children',       icon:'🍱', color:'#a78bfa' },
                     { label:'Pending Approvals',    val:'2',   sub:'users awaiting review', icon:'⏳', color:'#fb923c' },
                   ].map(s => (
-                    <div key={s.label} className="sad-stat" style={{ borderColor: `${s.color}20` }}
+                    <div key={s.label}
                       onClick={() => setActive(s.label.includes('Children') ? 'children' : s.label.includes('Teacher') || s.label.includes('Approval') ? 'users' : s.label.includes('Attend') ? 'attendance' : s.label.includes('Welfare') ? 'welfare' : s.label.includes('Fed') ? 'feeding' : 'users')}
                       style={{ cursor:'pointer', background:'#0f3d1a', border:`1px solid ${s.color}22`, borderRadius:11, padding:'0.9rem 1rem', transition:'transform 0.2s' }}
                     >
