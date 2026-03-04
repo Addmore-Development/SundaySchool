@@ -1,8 +1,8 @@
-// src/features/auth/LandingPage.tsx
+// src/features/landingpage/LandingPage.tsx
+// No modal logic here — just calls onLogin / onRegister props from App.tsx
 
-import React, { useState } from 'react';
+import React from 'react';
 import LANDING_BG_IMAGE from './landingImage';
-import RegisterModal from '../../components/ui/RegisterModal';
 import './LandingPage.css';
 
 const FEATURES = [
@@ -25,20 +25,13 @@ const FEATURES = [
 
 interface LandingPageProps {
   onLogin?: () => void;
+  onRegister?: () => void;
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({
-  onLogin = () => alert('Login coming soon'),
+  onLogin    = () => {},
+  onRegister = () => {},
 }) => {
-  const [showRegisterModal, setShowRegisterModal] = useState(false);
-
-  const handleRegisterContinue = (role: 'parent' | 'teacher' | 'admin') => {
-    setShowRegisterModal(false);
-    // TODO: swap alert for navigate() once React Router is wired up
-    // navigate(`/register/${role}`);
-    alert(`Navigating to ${role} registration form…`);
-  };
-
   return (
     <div className="landing">
 
@@ -65,11 +58,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
             <button className="landing__nav-login" onClick={onLogin}>
               Login
             </button>
-            {/* ── This button opens the modal ── */}
-            <button
-              className="landing__nav-register"
-              onClick={() => setShowRegisterModal(true)}
-            >
+            <button className="landing__nav-register" onClick={onRegister}>
               Register
             </button>
           </div>
@@ -114,12 +103,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
 
       </section>
 
-      {/* ══ REGISTER MODAL ════════════════════════════════════ */}
-      <RegisterModal
-        isOpen={showRegisterModal}
-        onClose={() => setShowRegisterModal(false)}
-        onContinue={handleRegisterContinue}
-      />
+      {/* ✅ NO RegisterModal here — App.tsx owns it */}
 
     </div>
   );
