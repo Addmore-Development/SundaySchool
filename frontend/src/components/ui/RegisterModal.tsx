@@ -5,6 +5,7 @@ type Role = 'parent' | 'teacher' | 'admin';
 interface RegisterModalProps {
   isOpen: boolean;
   onClose: () => void;
+  // App.tsx should route: parent → ParentRegisterPage, teacher → TeacherRegisterPage, admin → SuperAdminRegisterPage
   onContinue: (role: Role) => void;
 }
 
@@ -66,7 +67,7 @@ export default function RegisterModal({ isOpen, onClose, onContinue }: RegisterM
 
   const handleContinue = () => {
     if (selected) {
-      onContinue(selected); // ← directly calls App.tsx handler, no alert
+      onContinue(selected);
     }
   };
 
