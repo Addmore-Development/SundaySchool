@@ -51,7 +51,15 @@ export default function App() {
 
       {/* ── MAIN LOGIN PAGE (all roles) ── */}
       {screen === 'login' && (
-        <LoginPage />
+        <LoginPage
+          onSuccess={(role) => {
+            if (role === 'super_admin') setScreen('admin-dashboard');
+            if (role === 'parent')      setScreen('parent-dashboard');
+            if (role === 'teacher')     setScreen('parent-dashboard'); // update when TeacherDashboard exists
+          }}
+          onRegister={() => setShowModal(true)}
+          onBack={() => setScreen('landing')}
+        />
       )}
 
       {/* ── SUPER ADMIN REGISTER ── */}
