@@ -1,5 +1,4 @@
-export const USER_ROLES = ['parent', 'teacher', 'super_admin'] as const
-export type UserRole = typeof USER_ROLES[number]
+export type UserRole = 'parent' | 'teacher' | 'super_admin'
 
 export interface RegisteredUser {
   id: string
@@ -27,16 +26,12 @@ export const userStore = {
   },
   login(email: string, password: string, role: UserRole): RegisteredUser | null {
     return _users.find(
-      u =>
-        u.email.trim().toLowerCase() === email.trim().toLowerCase() &&
-        u.password === password &&
-        u.role === role
+      u => u.email.trim().toLowerCase() === email.trim().toLowerCase() &&
+           u.password === password && u.role === role
     ) ?? null
   },
   emailExists(email: string): boolean {
     return _users.some(u => u.email.trim().toLowerCase() === email.trim().toLowerCase())
   },
-  getAll() {
-    return [..._users]
-  },
+  getAll() { return [..._users] },
 }

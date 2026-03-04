@@ -1,5 +1,6 @@
 // src/features/auth/SuperAdminRegisterPage.tsx
 import { useState } from 'react';
+import { userStore } from '../../stores/userStore';
 
 interface Props {
   onBack?: () => void;
@@ -74,10 +75,19 @@ export default function SuperAdminRegisterPage({ onBack, onLoginInstead, onSucce
   };
 
   const handleSubmit = () => {
-    if (!validate()) return;
-    setSubmitted(true);
-    setTimeout(() => { onSuccess?.(); }, 2000);
-  };
+  if (!validate()) return
+  // Save to shared store so LoginPage can find this user
+  userStore.register({
+    name: `${form.firstName} ${form.lastName}`,
+    email: form.email,
+    password: form.password,
+    role: 'super_admin',
+    phone: form.phone,
+    position: form.position,
+  })
+  setSubmitted(true)
+  setTimeout(() => { onSuccess?.() }, 2000)
+}
 
   const strength = getStrength(form.password);
   const selectedPos = POSITIONS.find(p => p.value === form.position);

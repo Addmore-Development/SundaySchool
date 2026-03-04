@@ -1,13 +1,8 @@
 // frontend/src/features/auth/LoginPage.tsx
-// Centered login form — no left panel.
-
 import React, { useState, useEffect, useCallback } from 'react'
+import { userStore } from '../../stores/userStore'
+import type { UserRole } from '../../stores/userStore'
 
-type UserRole = 'parent' | 'teacher' | 'super_admin'
-
-interface MockUser {
-  id: string; name: string; email: string; role: UserRole; phone: string; password: string
-}
 interface Toast {
   id: string; type: 'success' | 'error' | 'warning' | 'info'; title: string; message?: string
 }
@@ -15,23 +10,6 @@ interface LoginPageProps {
   onSuccess:  (role: UserRole) => void
   onRegister: () => void
   onBack:     () => void
-}
-
-const MOCK_USERS: MockUser[] = [
-  { id: 'u-001', name: 'Nomsa Dlamini',    email: 'parent@demo.church',  password: 'Parent@123',  role: 'parent',      phone: '+27 82 111 2233' },
-  { id: 'u-002', name: 'Thabo Mokoena',    email: 'teacher@demo.church', password: 'Teacher@123', role: 'teacher',     phone: '+27 73 444 5566' },
-  { id: 'u-003', name: 'Pastor Sipho Nkosi', email: 'admin@demo.church', password: 'Admin@123',   role: 'super_admin', phone: '+27 71 777 8899' },
-]
-
-function mockLogin(email: string, password: string): Promise<MockUser> {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      const user = MOCK_USERS.find(
-        u => u.email.toLowerCase() === email.trim().toLowerCase() && u.password === password
-      )
-      user ? resolve(user) : reject(new Error('Invalid email or password. Please try again.'))
-    }, 900)
-  })
 }
 
 function validate(email: string, password: string) {
@@ -162,19 +140,30 @@ export default function LoginPage({ onSuccess, onRegister, onBack }: LoginPagePr
     e.preventDefault()
     setTouched({ email: true, password: true })
     const errs = validate(email, password)
-    if (Object.keys(errs).length) { setErrors(errs); toast.warning('Check your details', 'Fix the errors below before continuing.'); return }
+    if (Object.keys(errs).length) {
+      setErrors(errs)
+      toast.warning('Check your details', 'Fix the errors below before continuing.')
+      return
+    }
     setErrors({})
     setLoading(true)
-    try {
-      const user = await mockLogin(email, password)
-      sessionStorage.setItem('currentUser', JSON.stringify(user))
-      toast.success('Welcome back!', `Signed in as ${user.name}`)
-      setTimeout(() => onSuccess(user.role), 800)
-    } catch (err) {
-      toast.error('Login failed', err instanceof Error ? err.message : 'Something went wrong.')
-    } finally {
-      setLoading(false)
+    await new Promise(r => setTimeout(r, 900))
+    setLoading(false)
+
+    const roles: UserRole[] = ['super_admin', 'parent', 'teacher']
+    let user = null
+    for (const role of roles) {
+      user = userStore.login(email, password, role)
+      if (user) break
     }
+
+    if (!user) {
+      toast.error('Login failed', 'Invalid email or password. Please try again.')
+      return
+    }
+
+    toast.success('Welcome back!', `Signed in as ${user.name}`)
+    setTimeout(() => onSuccess(user!.role), 800)
   }
 
   return (
@@ -285,7 +274,6 @@ html, body, #root {
 @keyframes lp-fadeUp   { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes lp-slideDown{ from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 
-/* ── Root — full-screen centered ── */
 .lp-root {
   min-height: 100dvh;
   width: 100%;
@@ -299,7 +287,6 @@ html, body, #root {
     #060f08;
 }
 
-/* ── Card ── */
 .lp-card {
   width: 100%;
   max-width: 440px;
@@ -312,7 +299,6 @@ html, body, #root {
   animation: lp-fadeUp 0.55s ease both;
 }
 
-/* Brand */
 .lp-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
 .lp-brand-badge {
   width: 42px; height: 42px; border-radius: 11px;
@@ -323,12 +309,10 @@ html, body, #root {
 .lp-brand-name { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 15px; color: #fff; letter-spacing: -0.2px; line-height: 1.2; }
 .lp-brand-sub  { font-size: 11px; color: rgba(184,212,193,0.55); text-transform: uppercase; letter-spacing: 0.6px; margin-top: 2px; }
 
-/* Header */
 .lp-form-header { margin-bottom: 26px; }
 .lp-form-header h2 { font-family: 'Sora', sans-serif; font-size: clamp(18px,2.5vw,24px); font-weight: 800; color: #fff; letter-spacing: -0.4px; margin-bottom: 4px; }
 .lp-form-header p  { color: rgba(184,212,193,0.55); font-size: 13.5px; }
 
-/* Form */
 .lp-form { display: flex; flex-direction: column; gap: 17px; }
 .lp-field { display: flex; flex-direction: column; gap: 6px; }
 .lp-field label { font-size: 12.5px; font-weight: 600; color: rgba(255,255,255,0.75); }
@@ -336,7 +320,6 @@ html, body, #root {
 .lp-forgot { background: none; border: none; font-family: 'DM Sans', sans-serif; font-size: 12px; color: rgba(253,228,44,0.6); cursor: pointer; padding: 0; transition: color 0.18s; }
 .lp-forgot:hover { color: #fde42c; }
 
-/* Inputs */
 .lp-input-wrap { position: relative; display: flex; align-items: center; }
 .lp-input-icon { position: absolute; left: 13px; color: rgba(184,212,193,0.45); display: flex; pointer-events: none; transition: color 0.2s; }
 .lp-input-wrap:focus-within .lp-input-icon { color: #fde42c; }
@@ -355,7 +338,6 @@ html, body, #root {
 .lp-eye { position: absolute; right: 11px; background: none; border: none; cursor: pointer; color: rgba(184,212,193,0.45); display: flex; padding: 6px; border-radius: 6px; transition: color 0.2s, background 0.2s; }
 .lp-eye:hover { color: #fde42c; background: rgba(253,228,44,0.08); }
 
-/* Submit */
 .lp-btn-submit {
   margin-top: 6px; width: 100%; padding: 14px; border-radius: 10px; border: none;
   background: linear-gradient(135deg, #fde42c 0%, #f0d200 100%);
@@ -368,16 +350,13 @@ html, body, #root {
 .lp-btn-submit:disabled { opacity: 0.55; cursor: not-allowed; }
 .lp-arrow { font-size: 17px; line-height: 1; }
 
-/* Register row */
 .lp-register-row { margin-top: 18px; text-align: center; font-size: 13px; color: rgba(255,255,255,0.35); }
 .lp-register-link { background: none; border: none; color: #fde42c; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; padding: 0; text-decoration: underline; text-underline-offset: 2px; transition: opacity 0.18s; }
 .lp-register-link:hover { opacity: 0.75; }
 
-/* Demo hint */
 .lp-hint { margin-top: 14px; display: flex; align-items: flex-start; gap: 9px; padding: 11px 13px; border-radius: 9px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); font-size: 12px; color: rgba(255,255,255,0.38); line-height: 1.6; }
 .lp-hint-badge { flex-shrink: 0; font-size: 9px; font-weight: 700; font-family: 'Sora', sans-serif; padding: 3px 7px; border-radius: 4px; background: rgba(253,228,44,0.1); color: #fde42c; border: 1px solid rgba(253,228,44,0.18); letter-spacing: 0.5px; margin-top: 2px; }
 
-/* Back */
 .lp-back { display: block; margin: 18px auto 0; background: none; border: none; font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: rgba(255,255,255,0.3); cursor: pointer; padding: 0; transition: color 0.18s; }
 .lp-back:hover { color: rgba(255,255,255,0.7); }
 
