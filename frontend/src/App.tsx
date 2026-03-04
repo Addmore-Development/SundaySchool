@@ -6,37 +6,45 @@ import LandingPage            from './features/landingpage/LandingPage';
 import LoginPage              from './features/auth/LoginPage';
 import RegisterModal          from './components/ui/RegisterModal';
 import SuperAdminRegisterPage from './features/auth/SuperAdminRegisterPage';
-import SuperAdminLoginPage    from './features/auth/SuperAdminLoginPage';
 import SuperAdminDashboard    from './features/dashboard/SuperAdminDashboard';
 
-type Screen =
-  | 'landing'
-  | 'login'            // ← the proper multi-role LoginPage
-  | 'admin-register'
-  | 'admin-login'      // ← SuperAdmin-specific login (reached from register page)
-  | 'admin-dashboard'
-  | 'teacher-register'
-  | 'parent-register';
+type Screen = 'landing' | 'login' | 'admin-register' | 'admin-dashboard' | 'teacher-register' | 'parent-register';
+type ModalRole = 'parent' | 'teacher' | 'admin';
 
 export default function App() {
   const [screen, setScreen]               = useState<Screen>('landing');
   const [showRegisterModal, setShowModal] = useState(false);
+  const [adminInfo, setAdminInfo]         = useState({ name: 'Admin', position: 'Chairperson' });
 
-  const handleRoleSelected = (role: 'parent' | 'teacher' | 'admin') => {
+  const handleRoleSelected = (role: ModalRole) => {
+    console.log('Role selected:', role);   // ← keep this temporarily
     setShowModal(false);
-    if (role === 'admin')   setScreen('admin-register');
-    if (role === 'teacher') setScreen('teacher-register');
-    if (role === 'parent')  setScreen('parent-register');
+    switch (role) {
+      case 'admin':   setScreen('admin-register');   break;
+      case 'teacher': setScreen('teacher-register'); break;
+      case 'parent':  setScreen('parent-register');  break;
+    }
+  };
+
+  const handleLoginSuccess = (user: { name: string; role: string; email: string; position?: string }) => {
+    if (user.role === 'super_admin') {
+      setAdminInfo({ name: user.name, position: user.position ?? 'Super Admin' });
+      setScreen('admin-dashboard');
+    }
+  };
+
+  const handleOpenRegister = () => {
+    console.log('Opening register modal');  // ← keep this temporarily
+    setShowModal(true);
   };
 
   return (
     <>
-      {/* ── LANDING ── */}
       {screen === 'landing' && (
         <>
           <LandingPage
             onLogin={() => setScreen('login')}
-            onRegister={() => setShowModal(true)}
+            onRegister={handleOpenRegister}
           />
           <RegisterModal
             isOpen={showRegisterModal}
@@ -46,73 +54,42 @@ export default function App() {
         </>
       )}
 
-      {/* ── MAIN LOGIN PAGE (all roles) ── */}
       {screen === 'login' && (
-        <LoginPage />
+        <LoginPage
+          onLoginSuccess={handleLoginSuccess}
+          onBack={() => setScreen('landing')}
+        />
       )}
 
-      {/* ── SUPER ADMIN REGISTER ── */}
       {screen === 'admin-register' && (
         <SuperAdminRegisterPage
-          onBack={() => { setScreen('landing'); setShowModal(true); }}
-          onLoginInstead={() => setScreen('admin-login')}
+          onBack={() => { setShowModal(true); setScreen('landing'); }}
+          onLoginInstead={() => setScreen('login')}
           onSuccess={() => setScreen('admin-dashboard')}
         />
       )}
 
-      {/* ── SUPER ADMIN LOGIN (reached from register page only) ── */}
-      {screen === 'admin-login' && (
-        <SuperAdminLoginPage
-          onBack={() => setScreen('landing')}
-          onRegisterInstead={() => setScreen('admin-register')}
-          onSuccess={() => setScreen('admin-dashboard')}
-        />
-      )}
-
-      {/* ── SUPER ADMIN DASHBOARD ── */}
       {screen === 'admin-dashboard' && (
         <SuperAdminDashboard
-          adminName="Chairperson"
-          adminPosition="Chairperson"
+          adminName={adminInfo.name}
+          adminPosition={adminInfo.position}
           onLogout={() => setScreen('landing')}
         />
       )}
 
-      {/* ── TEACHER REGISTER (placeholder) ── */}
       {screen === 'teacher-register' && (
-        <div style={{
-          minHeight: '100vh', width: '100%', background: '#0a2e12',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: "'DM Sans', sans-serif", color: '#fff',
-          textAlign: 'center', flexDirection: 'column', gap: '1rem',
-        }}>
-          <div style={{ fontSize: '3rem' }}>🧑‍🏫</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '1.5rem', color: '#f0c000', letterSpacing: 2 }}>
-            Teacher Registration — Coming Soon
-          </div>
-          <button
-            onClick={() => { setScreen('landing'); setShowModal(true); }}
-            style={{ marginTop: '1rem', background: 'none', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.6)', padding: '0.6rem 1.5rem', borderRadius: '8px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}
-          >← Back</button>
+        <div style={{ minHeight:'100vh', background:'#0a2e12', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:'1rem', color:'#fff', fontFamily:"'DM Sans',sans-serif", textAlign:'center' }}>
+          <div style={{ fontSize:'3rem' }}>🧑‍🏫</div>
+          <div style={{ fontSize:'1.5rem', color:'#f0c000' }}>Teacher Registration — Coming Soon</div>
+          <button onClick={() => { setScreen('landing'); setShowModal(true); }} style={{ marginTop:'1rem', background:'none', border:'1px solid rgba(255,255,255,0.2)', color:'rgba(255,255,255,0.6)', padding:'0.6rem 1.5rem', borderRadius:'8px', cursor:'pointer' }}>← Back</button>
         </div>
       )}
 
-      {/* ── PARENT REGISTER (placeholder) ── */}
       {screen === 'parent-register' && (
-        <div style={{
-          minHeight: '100vh', width: '100%', background: '#0a2e12',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: "'DM Sans', sans-serif", color: '#fff',
-          textAlign: 'center', flexDirection: 'column', gap: '1rem',
-        }}>
-          <div style={{ fontSize: '3rem' }}>👨‍👩‍👧</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '1.5rem', color: '#34d399', letterSpacing: 2 }}>
-            Parent Registration — Coming Soon
-          </div>
-          <button
-            onClick={() => { setScreen('landing'); setShowModal(true); }}
-            style={{ marginTop: '1rem', background: 'none', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.6)', padding: '0.6rem 1.5rem', borderRadius: '8px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}
-          >← Back</button>
+        <div style={{ minHeight:'100vh', background:'#0a2e12', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:'1rem', color:'#fff', fontFamily:"'DM Sans',sans-serif", textAlign:'center' }}>
+          <div style={{ fontSize:'3rem' }}>👨‍👩‍👧</div>
+          <div style={{ fontSize:'1.5rem', color:'#34d399' }}>Parent Registration — Coming Soon</div>
+          <button onClick={() => { setScreen('landing'); setShowModal(true); }} style={{ marginTop:'1rem', background:'none', border:'1px solid rgba(255,255,255,0.2)', color:'rgba(255,255,255,0.6)', padding:'0.6rem 1.5rem', borderRadius:'8px', cursor:'pointer' }}>← Back</button>
         </div>
       )}
     </>
