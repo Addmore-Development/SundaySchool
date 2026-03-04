@@ -253,9 +253,11 @@ export default function LoginPage({ onSuccess, onRegister, onBack }: LoginPagePr
           <div className="lp-hint">
             <span className="lp-hint-badge">DEMO</span>
             <span>
-              <strong style={{ color: 'rgba(253,228,44,0.85)' }}>parent@demo.church</strong> / <strong style={{ color: 'rgba(253,228,44,0.85)' }}>Parent@123</strong>
+              <strong style={{ color: 'rgba(253,228,44,0.85)' }}>parent@demo.church</strong> / Parent@123
               {' · '}
-              <strong style={{ color: 'rgba(253,228,44,0.85)' }}>admin@demo.church</strong> / <strong style={{ color: 'rgba(253,228,44,0.85)' }}>Admin@123</strong>
+              <strong style={{ color: 'rgba(253,228,44,0.85)' }}>teacher@demo.church</strong> / Teacher@123
+              {' · '}
+              <strong style={{ color: 'rgba(253,228,44,0.85)' }}>admin@demo.church</strong> / Admin@123
             </span>
           </div>
 
