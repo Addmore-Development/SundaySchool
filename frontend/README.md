@@ -71,3 +71,112 @@ export default defineConfig([
   },
 ])
 ```
+
+## Project Structure
+
+```
+sunday-school-portal/                  ← root folder (git repo)
+├── backend/                           ← Node.js + Express + TypeScript API
+│   ├── src/
+│   │   ├── config/                    ← env, database, logger, etc.
+│   │   │   ├── database.ts
+│   │   │   ├── env.ts
+│   │   │   └── index.ts
+│   │   ├── controllers/               ← request handlers (business logic light)
+│   │   │   ├── auth.controller.ts
+│   │   │   ├── child.controller.ts
+│   │   │   ├── attendance.controller.ts
+│   │   │   ├── feeding.controller.ts
+│   │   │   ├── welfare.controller.ts
+│   │   │   └── report.controller.ts
+│   │   ├── middleware/
+│   │   │   ├── auth.middleware.ts       ← JWT / role checks
+│   │   │   ├── error.middleware.ts
+│   │   │   └── validate.middleware.ts   ← zod or express-validator
+│   │   ├── models/                      ← Mongoose schemas or Prisma models
+│   │   │   ├── User.ts
+│   │   │   ├── Child.ts
+│   │   │   ├── Family.ts
+│   │   │   ├── Attendance.ts
+│   │   │   ├── Feeding.ts
+│   │   │   └── WelfareConcern.ts
+│   │   ├── routes/                      ← express.Router() definitions
+│   │   │   ├── auth.routes.ts
+│   │   │   ├── child.routes.ts
+│   │   │   ├── attendance.routes.ts
+│   │   │   └── index.ts                 ← combine all
+│   │   ├── services/                    ← business logic + DB calls
+│   │   │   ├── auth.service.ts
+│   │   │   ├── child.service.ts
+│   │   │   ├── attendance.service.ts
+│   │   │   ├── notification.service.ts  ← SMS/WhatsApp stub
+│   │   │   └── report.service.ts
+│   │   ├── types/                       ← shared DTO / response types
+│   │   │   ├── auth.types.ts
+│   │   │   ├── child.types.ts
+│   │   │   └── index.ts
+│   │   ├── utils/
+│   │   │   ├── logger.ts
+│   │   │   └── helpers.ts
+│   │   └── server.ts                    ← entry point (or index.ts)
+│   ├── tests/                           ← jest / vitest
+│   ├── .env
+│   ├── .env.example
+│   ├── tsconfig.json
+│   ├── package.json
+│   └── tsconfig.build.json              (optional)
+│
+├── frontend/                          ← your existing Vite + React + TS app
+│   ├── public/
+│   │   └── vite.svg
+│   ├── src/
+│   │   ├── api/                       ← axios / fetch clients + typed endpoints
+│   │   │   ├── client.ts
+│   │   │   ├── auth.api.ts
+│   │   │   ├── child.api.ts
+│   │   │   └── attendance.api.ts
+│   │   ├── components/                ← reusable UI pieces
+│   │   │   ├── ui/                    ← atoms / molecules (Button, Input, Card, Modal…)
+│   │   │   ├── layout/                ← Header, Sidebar, Footer
+│   │   │   ├── forms/                 ← RegistrationForm, ChildForm, ConsentForm
+│   │   │   └── attendance/
+│   │   ├── contexts/                  ← React Context (if not using Zustand/Redux)
+│   │   │   └── AuthContext.tsx
+│   │   ├── features/                  ← feature-based (recommended for larger app)
+│   │   │   ├── auth/
+│   │   │   │   ├── LoginPage.tsx
+│   │   │   │   └── RegisterPage.tsx
+│   │   │   ├── dashboard/
+│   │   │   ├── children/
+│   │   │   │   ├── ChildList.tsx
+│   │   │   │   ├── ChildProfile.tsx
+│   │   │   │   └── ChildRegisterForm.tsx
+│   │   │   ├── attendance/
+│   │   │   ├── feeding/
+│   │   │   └── welfare/
+│   │   ├── hooks/
+│   │   │   ├── useAuth.ts
+│   │   │   └── useQueryChildren.ts
+│   │   ├── lib/                       ← utilities, formatters, constants
+│   │   ├── pages/                     ← if using React Router page components
+│   │   ├── routes/                    ← router config (AppRoutes.tsx)
+│   │   ├── stores/                    ← Zustand / Jotai stores (preferred over Context)
+│   │   ├── types/                     ← shared frontend types (can share with backend later)
+│   │   ├── App.tsx
+│   │   ├── main.tsx
+│   │   └── index.css
+│   ├── .eslintrc.cjs                  (or eslint.config.js)
+│   ├── tsconfig.json
+│   ├── tsconfig.app.json
+│   ├── vite.config.ts
+│   └── package.json
+│
+├── docs/                              ← architecture decision records, scope, wireframes
+│   ├── adr/
+│   └── images/
+│
+├── .gitignore
+├── docker-compose.yml                 (optional – for local dev with mongo/postgres)
+├── README.md
+└── package.json                       (root – can be minimal or used for monorepo scripts)
+```
