@@ -3,6 +3,7 @@ import { useState } from 'react';
 import './index.css';
 
 import LandingPage            from './features/landingpage/LandingPage';
+import LoginPage              from './features/auth/LoginPage';
 import RegisterModal          from './components/ui/RegisterModal';
 import SuperAdminRegisterPage from './features/auth/SuperAdminRegisterPage';
 import SuperAdminLoginPage    from './features/auth/SuperAdminLoginPage';
@@ -10,8 +11,9 @@ import SuperAdminDashboard    from './features/dashboard/SuperAdminDashboard';
 
 type Screen =
   | 'landing'
+  | 'login'            // ← the proper multi-role LoginPage
   | 'admin-register'
-  | 'admin-login'
+  | 'admin-login'      // ← SuperAdmin-specific login (reached from register page)
   | 'admin-dashboard'
   | 'teacher-register'
   | 'parent-register';
@@ -19,8 +21,6 @@ type Screen =
 export default function App() {
   const [screen, setScreen]               = useState<Screen>('landing');
   const [showRegisterModal, setShowModal] = useState(false);
-  // Store admin name from registration to pass to dashboard
-  const [adminInfo, setAdminInfo]         = useState({ name: 'Admin', position: 'Chairperson' });
 
   const handleRoleSelected = (role: 'parent' | 'teacher' | 'admin') => {
     setShowModal(false);
@@ -35,7 +35,7 @@ export default function App() {
       {screen === 'landing' && (
         <>
           <LandingPage
-            onLogin={() => setScreen('admin-login')}
+            onLogin={() => setScreen('login')}
             onRegister={() => setShowModal(true)}
           />
           <RegisterModal
@@ -46,7 +46,12 @@ export default function App() {
         </>
       )}
 
-      {/* ── SUPER ADMIN REGISTER — goes to dashboard on success ── */}
+      {/* ── MAIN LOGIN PAGE (all roles) ── */}
+      {screen === 'login' && (
+        <LoginPage />
+      )}
+
+      {/* ── SUPER ADMIN REGISTER ── */}
       {screen === 'admin-register' && (
         <SuperAdminRegisterPage
           onBack={() => { setScreen('landing'); setShowModal(true); }}
@@ -55,7 +60,7 @@ export default function App() {
         />
       )}
 
-      {/* ── SUPER ADMIN LOGIN — goes to dashboard on success ── */}
+      {/* ── SUPER ADMIN LOGIN (reached from register page only) ── */}
       {screen === 'admin-login' && (
         <SuperAdminLoginPage
           onBack={() => setScreen('landing')}
@@ -67,8 +72,8 @@ export default function App() {
       {/* ── SUPER ADMIN DASHBOARD ── */}
       {screen === 'admin-dashboard' && (
         <SuperAdminDashboard
-          adminName={adminInfo.name}
-          adminPosition={adminInfo.position}
+          adminName="Chairperson"
+          adminPosition="Chairperson"
           onLogout={() => setScreen('landing')}
         />
       )}
