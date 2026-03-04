@@ -1,9 +1,4 @@
-Here is a clear, realistic **README.md** section focused on **creating the Homepage, Login page, and Register flow** for your Sunday School Management Portal frontend.
-
-You can paste this directly into your `frontend/README.md` (or append it to the main repo README if you prefer one file).
-
-```markdown
-# Sunday School Management Portal – Frontend
+## Sunday School Management Portal – Frontend
 
 Mobile-first React + Vite application for church Sunday school administration.
 
