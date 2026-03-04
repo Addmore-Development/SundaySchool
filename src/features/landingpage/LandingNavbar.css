@@ -1,0 +1,432 @@
+/* ═══════════════════════════════════════════════════════════
+   LandingPage.css
+   Colors: deep forest green (#0a2d18 / #0d3320 / #0f3d22)
+           gold accent (#c8a800 / #f0d040)
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Root wrapper ── */
+.landing {
+  min-height: 100vh;
+  background-color: #0a2d18;
+  color: #ffffff;
+  font-family: var(--font-body, 'Segoe UI', system-ui, sans-serif);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ══════════════════════════════════════════
+   HERO
+══════════════════════════════════════════ */
+.landing__hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Background image — fills the entire hero */
+.landing__hero-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center 30%;
+  background-repeat: no-repeat;
+  transform: scale(1.04);  /* slight zoom so edges don't show on animation */
+  animation: heroBgIn 1.2s ease both;
+}
+
+@keyframes heroBgIn {
+  from { transform: scale(1.1); opacity: 0.7; }
+  to   { transform: scale(1.04); opacity: 1; }
+}
+
+/* Dark green overlay — matches the screenshot's ~65% opacity tint */
+.landing__hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 36, 20, 0.68);
+  /* Gradient darkens the bottom so trust-bar and cards sit cleanly */
+  background: linear-gradient(
+    to bottom,
+    rgba(8, 36, 20, 0.60) 0%,
+    rgba(8, 36, 20, 0.72) 50%,
+    rgba(8, 36, 20, 0.85) 100%
+  );
+}
+
+/* ── Hero content ── */
+.landing__hero-content {
+  position: relative;
+  z-index: 10;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120px 24px 60px;
+  text-align: center;
+  gap: 0;
+}
+
+/* ── Heading ── */
+.landing__hero-heading {
+  font-size: clamp(40px, 6vw, 72px);
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: -2px;
+  margin: 0 0 24px;
+  animation: heroHeadIn 0.7s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes heroHeadIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.landing__hero-heading--white {
+  color: #ffffff;
+}
+
+.landing__hero-heading--gold {
+  color: #c8a800;
+  display: block;
+}
+
+/* ── Subheading ── */
+.landing__hero-subheading {
+  color: #c8d8cc;
+  font-size: clamp(15px, 1.8vw, 18px);
+  font-weight: 400;
+  line-height: 1.7;
+  max-width: 600px;
+  margin: 0 auto 56px;
+  animation: heroSubIn 0.7s 0.15s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes heroSubIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Feature cards (3-col) ── */
+.landing__feature-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  width: 100%;
+  max-width: 860px;
+  animation: heroCardsIn 0.7s 0.25s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes heroCardsIn {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.landing__feature-card {
+  background: rgba(15, 61, 34, 0.78);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 22px 20px;
+  text-align: center;
+  transition: border-color 0.2s, transform 0.18s;
+}
+
+.landing__feature-card:hover {
+  border-color: rgba(200, 168, 0, 0.35);
+  transform: translateY(-2px);
+}
+
+.landing__feature-card-title {
+  color: #c8a800;
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 10px;
+  letter-spacing: 0.1px;
+}
+
+.landing__feature-card-desc {
+  color: #b8d4c0;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ── Trust bar ── */
+.landing__trust-bar {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 18px 24px;
+  color: #7aab8a;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  animation: trustIn 0.5s 0.5s ease both;
+}
+
+@keyframes trustIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.landing__trust-dot {
+  color: rgba(200, 168, 0, 0.5);
+  font-size: 13px;
+}
+
+/* ══════════════════════════════════════════
+   VALUE PROPS SECTION
+══════════════════════════════════════════ */
+.landing__features {
+  background-color: #0a2d18;
+  padding: 80px 24px;
+}
+
+.landing__features-inner {
+  max-width: 980px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.landing__features-title {
+  font-size: clamp(26px, 3.5vw, 38px);
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.8px;
+  line-height: 1.2;
+  margin: 0 0 14px;
+}
+
+.landing__features-title--gold {
+  color: #c8a800;
+}
+
+.landing__features-subtitle {
+  color: #9ac4a8;
+  font-size: 15px;
+  margin: 0 auto 52px;
+  max-width: 540px;
+  line-height: 1.65;
+}
+
+/* 3-col, wraps to 2 then 1 */
+.landing__value-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.landing__value-card {
+  background-color: #0f3d22;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  padding: 24px 22px;
+  text-align: left;
+  transition: border-color 0.2s, transform 0.15s;
+  animation: cardSlideIn 0.4s ease both;
+}
+
+@keyframes cardSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.landing__value-card:hover {
+  border-color: rgba(200, 168, 0, 0.28);
+  transform: translateY(-2px);
+}
+
+.landing__value-icon {
+  font-size: 24px;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.landing__value-label {
+  color: #ffffff;
+  font-size: 14.5px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  letter-spacing: -0.1px;
+}
+
+.landing__value-desc {
+  color: #9ac4a8;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ══════════════════════════════════════════
+   CTA STRIP
+══════════════════════════════════════════ */
+.landing__cta {
+  background: linear-gradient(135deg, #0d3320 0%, #0f3d22 100%);
+  border-top: 1px solid rgba(200, 168, 0, 0.15);
+  border-bottom: 1px solid rgba(200, 168, 0, 0.15);
+  padding: 72px 24px;
+}
+
+.landing__cta-inner {
+  max-width: 640px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.landing__cta-title {
+  color: #ffffff;
+  font-size: clamp(22px, 3vw, 32px);
+  font-weight: 800;
+  letter-spacing: -0.6px;
+  margin: 0 0 14px;
+  line-height: 1.25;
+}
+
+.landing__cta-sub {
+  color: #9ac4a8;
+  font-size: 15px;
+  margin: 0 auto 36px;
+  line-height: 1.6;
+}
+
+.landing__cta-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.landing__cta-btn {
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 13px 30px;
+  letter-spacing: 0.2px;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+
+.landing__cta-btn:active { transform: scale(0.97); }
+
+.landing__cta-btn--primary {
+  background: #c8a800;
+  color: #0a2d18;
+  box-shadow: 0 3px 14px rgba(200, 168, 0, 0.35);
+}
+
+.landing__cta-btn--primary:hover {
+  background: #d4b800;
+  box-shadow: 0 5px 20px rgba(200, 168, 0, 0.5);
+  transform: translateY(-1px);
+}
+
+.landing__cta-btn--ghost {
+  background: transparent;
+  color: #c8a800;
+  border: 1.5px solid rgba(200, 168, 0, 0.6);
+}
+
+.landing__cta-btn--ghost:hover {
+  background: rgba(200, 168, 0, 0.08);
+  border-color: #c8a800;
+}
+
+/* ══════════════════════════════════════════
+   FOOTER
+══════════════════════════════════════════ */
+.landing__footer {
+  background-color: #080f0b;
+  padding: 28px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.landing__footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #9ac4a8;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.landing__footer-logo {
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, #c8a800, #e6c400);
+  color: #0a2d18;
+  font-weight: 800;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+.landing__footer-legal {
+  color: #4a7a5a;
+  font-size: 11.5px;
+  margin: 0;
+  text-align: right;
+}
+
+/* ══════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════ */
+@media (max-width: 860px) {
+  .landing__feature-cards {
+    grid-template-columns: 1fr;
+    max-width: 420px;
+  }
+
+  .landing__value-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .landing__hero-content {
+    padding: 100px 18px 50px;
+  }
+
+  .landing__hero-heading {
+    letter-spacing: -1px;
+  }
+
+  .landing__features { padding: 56px 18px; }
+
+  .landing__value-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .landing__cta { padding: 52px 18px; }
+
+  .landing__footer {
+    flex-direction: column;
+    text-align: center;
+    padding: 22px 18px;
+  }
+
+  .landing__footer-legal { text-align: center; }
+
+  .landing__trust-bar {
+    flex-wrap: wrap;
+    font-size: 9.5px;
+    gap: 8px;
+  }
+}
