@@ -6,12 +6,12 @@ import LandingPage            from './features/landingpage/LandingPage';
 import LoginPage              from './features/auth/LoginPage';
 import RegisterModal          from './components/ui/RegisterModal';
 import SuperAdminRegisterPage from './features/auth/SuperAdminRegisterPage';
-import SuperAdminLoginPage    from './features/auth/SuperAdminLoginPage';
 import SuperAdminDashboard    from './features/dashboard/SuperAdminDashboard';
 import ParentRegisterPage     from './features/auth/ParentRegisterPage';
 import ParentDashboard        from './features/dashboard/ParentDashboard';
 import TeacherRegisterPage    from './features/auth/TeacherRegisterPage';
 import TeacherDashboard       from './features/dashboard/TeacherDashboard';
+import ChildRegisterForm      from './features/children/ChildRegisterForm';
 
 type UserRole = 'parent' | 'teacher' | 'super_admin';
 
@@ -27,13 +27,13 @@ type Screen =
   | 'landing'
   | 'login'
   | 'admin-register'
-  | 'admin-login'
   | 'admin-dashboard'
   | 'teacher-register'
   | 'teacher-register-pending'
   | 'teacher-dashboard'
   | 'parent-register'
-  | 'parent-dashboard';
+  | 'parent-dashboard'
+  | 'child-register';
 
 export default function App() {
   const [screen, setScreen]               = useState<Screen>('landing');
@@ -120,16 +120,7 @@ export default function App() {
       {screen === 'admin-register' && (
         <SuperAdminRegisterPage
           onBack={() => { setScreen('landing'); setShowModal(true); }}
-          onLoginInstead={() => setScreen('admin-login')}
-          onSuccess={() => setScreen('admin-dashboard')}
-        />
-      )}
-
-      {/* ── SUPER ADMIN LOGIN ── */}
-      {screen === 'admin-login' && (
-        <SuperAdminLoginPage
-          onBack={() => setScreen('landing')}
-          onRegisterInstead={() => setScreen('admin-register')}
+          onLoginInstead={() => setScreen('login')}
           onSuccess={() => setScreen('admin-dashboard')}
         />
       )}
@@ -140,6 +131,7 @@ export default function App() {
           adminName={currentUser?.name ?? 'Chairperson'}
           adminPosition="Chairperson"
           onLogout={handleLogout}
+          onRegisterChild={() => setScreen('child-register')}
         />
       )}
 
@@ -158,6 +150,13 @@ export default function App() {
           user={currentUser ?? undefined}
           onLogout={handleLogout}
           onRegisterChild={() => {/* handled internally by ParentDashboard */}}
+        />
+      )}
+
+      {/* ── CHILD REGISTER ── */}
+      {screen === 'child-register' && (
+        <ChildRegisterForm
+          onBack={() => setScreen('admin-dashboard')}
         />
       )}
     </>
