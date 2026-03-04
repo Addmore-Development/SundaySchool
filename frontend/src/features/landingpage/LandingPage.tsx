@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import LANDING_BG_IMAGE from './landingImage';
+import RegisterModal from '../../components/ui/RegisterModal';
 import './LandingPage.css';
 
 const FEATURES = [
@@ -27,25 +28,20 @@ interface LandingPageProps {
 
 const LandingPage: React.FC<LandingPageProps> = ({
   onLogin = () => alert('Login coming soon'),
-  onRegister = () => alert('Register coming soon'),
 }) => {
+  const [registerOpen, setRegisterOpen] = useState(false);
+
   return (
     <div className="landing">
-
-      {/* ══ FULL SCREEN HERO ══════════════════════════════════ */}
       <section className="landing__hero">
 
-        {/* Background image */}
         <div
           className="landing__hero-bg"
           style={{ backgroundImage: `url(${LANDING_BG_IMAGE})` }}
           aria-hidden="true"
         />
-
-        {/* Dark overlay */}
         <div className="landing__hero-overlay" aria-hidden="true" />
 
-        {/* ── Navbar ── */}
         <header className="landing__nav">
           <div className="landing__nav-brand">
             <div className="landing__nav-logo">SS</div>
@@ -55,13 +51,15 @@ const LandingPage: React.FC<LandingPageProps> = ({
             <button className="landing__nav-login" onClick={onLogin}>
               Login
             </button>
-            <button className="landing__nav-register" onClick={onRegister}>
+            <button
+              className="landing__nav-register"
+              onClick={() => setRegisterOpen(true)}
+            >
               Register
             </button>
           </div>
         </header>
 
-        {/* ── Hero content ── */}
         <div className="landing__hero-content">
           <h1 className="landing__hero-heading">
             <span className="landing__hero-heading--white">Empowering the</span>
@@ -74,7 +72,6 @@ const LandingPage: React.FC<LandingPageProps> = ({
             registration, attendance, feeding schemes, and welfare tracking.
           </p>
 
-          {/* Feature cards */}
           <div className="landing__feature-cards">
             {FEATURES.map((f, i) => (
               <div
@@ -89,7 +86,6 @@ const LandingPage: React.FC<LandingPageProps> = ({
           </div>
         </div>
 
-        {/* ── Trust bar ── */}
         <div className="landing__trust-bar">
           <span>POPIA COMPLIANT</span>
           <span className="landing__trust-dot">•</span>
@@ -99,6 +95,15 @@ const LandingPage: React.FC<LandingPageProps> = ({
         </div>
 
       </section>
+
+      <RegisterModal
+        isOpen={registerOpen}
+        onClose={() => setRegisterOpen(false)}
+        onSwitchToLogin={() => {
+          setRegisterOpen(false);
+          onLogin();
+        }}
+      />
     </div>
   );
 };
