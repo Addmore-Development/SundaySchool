@@ -2,6 +2,7 @@
 // Updated: centered layout, inline attendance dropdowns, register override popup,
 // fed filter, SA ID/phone format, report synced to attendance tab, green palette
 // v2: updated color palette + localStorage profile loading
+// v3: fixed all TS build errors
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 
@@ -42,10 +43,6 @@ const getSundaysInRange = (startISO: string, endISO: string): string[] => {
   return result;
 };
 
-// SA validation helpers
-const validateSAID = (val: string) => /^\d{13}$/.test(val);
-const validateSAPhone = (val: string) => /^\+27\d{9}$/.test(val.replace(/\s/g, ''));
-
 const AVATAR_PALETTE = ['#2d6a4f','#1e6091','#6d3e91','#a05c34','#1a6b6b','#8b3a3a','#4a6741','#1a5276','#6e2f8a'];
 const PRESET_COLORS: Record<string, string> = { k1:'#2d6a4f', k2:'#1e6091', k3:'#6d3e91', k4:'#a05c34', k5:'#1a6b6b', k6:'#8b3a3a', k7:'#4a6741' };
 const avatarColor = (id: string, idx: number) => PRESET_COLORS[id] ?? AVATAR_PALETTE[idx % AVATAR_PALETTE.length];
@@ -78,7 +75,7 @@ const FL: React.CSSProperties = { display:'block', fontSize:'0.75rem', fontWeigh
 const FI: React.CSSProperties = { width:'100%', padding:'0.72rem 0.9rem', borderRadius:'9px', border:'1.5px solid rgba(255,255,255,0.1)', background:'rgba(255,255,255,0.04)', color:'#fff', fontFamily:"'DM Sans',sans-serif", fontSize:'0.9rem', outline:'none', colorScheme:'dark' as any };
 const WL: React.CSSProperties = { display:'block', fontSize:'0.75rem', fontWeight:600, color:'rgba(255,255,255,0.6)', marginBottom:'0.4rem' };
 const WI: React.CSSProperties = { width:'100%', padding:'0.72rem 0.9rem', borderRadius:'9px', border:'1.5px solid rgba(255,255,255,0.1)', background:'rgba(255,255,255,0.04)', color:'#fff', fontFamily:"'DM Sans',sans-serif", fontSize:'0.9rem', outline:'none', colorScheme:'dark' as any };
-const WE: React.CSSProperties = { fontSize:'0.72rem', color:'#f87171', marginTop:'0.3rem', display:'block' };
+const WE: React.CSSProperties = { fontSize:'0.72rem', color:'#9ca3af', marginTop:'0.3rem', display:'block' };
 
 // ─── SVG Pie Chart ────────────────────────────────────────────────────────────
 function PieChart({ data, size = 160 }: { data: { label: string; value: number; color: string }[]; size?: number }) {
@@ -142,7 +139,7 @@ function BarChart({ stats }: { stats: { date: string; pct: number; present: numb
   );
 }
 
-// ─── Register Override Popup (Class Register tab only) ────────────────────────
+// ─── Register Override Popup ──────────────────────────────────────────────────
 function RegisterOverridePopup({ child, idx, attendanceHistory, savedSundays, onClose, onOverride }: {
   child: Child; idx: number;
   attendanceHistory: DailyAttendanceRecord[];
@@ -313,9 +310,10 @@ function RegisterOverridePopup({ child, idx, attendanceHistory, savedSundays, on
 }
 
 // ─── Family Profile Card ──────────────────────────────────────────────────────
-function FamilyProfileCard({ family, children, idx, onClose }: {
+// FIX TS6133: removed unused 'children' and 'idx' params from FamilyProfileCard
+function FamilyProfileCard({ family, onClose }: {
   family: { parentName: string; parentPhone: string; parentEmail: string; registeredBy: 'parent'|'teacher'; address?: string; emergencyContact?: string; parentIdNumber?: string; employmentStatus?: string; guardianRelationship?: string; children: Child[] };
-  children: Child[]; idx: number; onClose: () => void;
+  onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -353,8 +351,7 @@ function FamilyProfileCard({ family, children, idx, onClose }: {
         </div>
 
         <div style={{ padding:'1.25rem', display:'flex', flexDirection:'column', gap:'1rem' }}>
-
-          {/* Guardian / Parent Details */}
+          {/* Guardian Details */}
           <div style={{ background:'rgba(255,255,255,0.025)', border:'1px solid rgba(255,255,255,0.065)', borderRadius:12, padding:'1rem' }}>
             <div style={{ fontSize:'0.68rem', fontWeight:700, color:'rgba(255,255,255,0.35)', textTransform:'uppercase', letterSpacing:'0.8px', marginBottom:'0.75rem' }}>👤 Guardian Details</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.65rem' }}>
@@ -401,7 +398,6 @@ function FamilyProfileCard({ family, children, idx, onClose }: {
               ))}
             </div>
           </div>
-
         </div>
       </div>
     </div>
@@ -426,10 +422,16 @@ export default function TeacherDashboard({
     return null;
   }, []);
 
+  // FIX TS2339: MockUser has 'name' not 'firstName'/'lastName' — derive display name safely
   const user: MockUser = useMemo(() => {
     if (savedProfile) {
+      // Support both name formats: flat 'name' string, or firstName+lastName from a different form shape
+      const savedAny = savedProfile as any;
+      const resolvedName = savedProfile.name
+        ?? (savedAny.firstName && savedAny.lastName ? `${savedAny.firstName} ${savedAny.lastName}` : undefined)
+        ?? userProp.name;
       return {
-        name: savedProfile.name ?? savedProfile.firstName ? `${(savedProfile as any).firstName} ${(savedProfile as any).lastName}` : userProp.name,
+        name: resolvedName,
         email: savedProfile.email ?? userProp.email,
         phone: savedProfile.phone ?? userProp.phone,
         role: savedProfile.role ?? 'teacher',
@@ -604,7 +606,6 @@ export default function TeacherDashboard({
   const lateLive    = currentEntries.filter(e => e.status === 'late').length;
   const liveFed     = currentEntries.filter(e => e.fed).length;
 
-  // Derived display values
   const displayName = user.name;
   const gradeLabel = user.gradesSelected?.join(', ') ?? 'Grade 3';
   const churchLabel = user.church ?? '';
@@ -623,11 +624,10 @@ export default function TeacherDashboard({
           onOverride={handleAttendanceOverride}
         />
       )}
+      {/* FIX TS6133: removed unused children/idx props from FamilyProfileCard call */}
       {selectedFamily && (
         <FamilyProfileCard
           family={selectedFamily}
-          children={children}
-          idx={0}
           onClose={() => setSelectedFamilyName(null)}
         />
       )}
@@ -696,7 +696,7 @@ export default function TeacherDashboard({
                   </div>
                 </div>
 
-                {/* My Profile card — loaded from localStorage */}
+                {/* My Profile card */}
                 <div className="td-card" style={{ marginBottom:'1.25rem' }}>
                   <div className="td-card-title" style={{ marginBottom:'1rem' }}>👤 My Profile</div>
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:'0.75rem' }}>
@@ -967,7 +967,7 @@ export default function TeacherDashboard({
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem' }}>
                       <div>
                         <label style={WL}>Child *</label>
-                        <select style={{ ...WI, borderColor:welfareErrors.childId?'#e05252':'rgba(255,255,255,0.1)' }} value={welfareForm.childId} onChange={e => setWelfareForm(f => ({ ...f, childId:e.target.value }))}>
+                        <select style={{ ...WI, borderColor:welfareErrors.childId?'#6b7280':'rgba(255,255,255,0.1)' }} value={welfareForm.childId} onChange={e => setWelfareForm(f => ({ ...f, childId:e.target.value }))}>
                           <option value="">Select child</option>
                           {children.map(c => <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>)}
                         </select>
@@ -1104,8 +1104,9 @@ export default function TeacherDashboard({
                     <div style={{ fontSize:'0.82rem', color:'rgba(255,255,255,0.5)', lineHeight:1.6 }}>Click any family card to view their full profile including guardian details, relationship, employment status, and attendance rates. Use <strong style={{ color:'#34d399' }}>Register New Family</strong> to add a family via the parent registration form.</div>
                   </div>
                 </div>
+                {/* FIX TS6133: removed fIdx from map — use _ prefix if needed or just omit */}
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))', gap:'1rem' }}>
-                  {families.map((family, fIdx) => {
+                  {families.map((family) => {
                     const avgAtt = family.children.length ? Math.round(family.children.reduce((s,c) => s+c.attendanceRate,0)/family.children.length) : 0;
                     const attColor = avgAtt>=80?'#34d399':avgAtt>=60?'#f0c000':'#e05252';
                     const hasWelfare = family.children.some(c => c.welfareFlags > 0);
@@ -1446,16 +1447,6 @@ html, body, #root { width: 100%; min-height: 100vh; background: #071a0d; font-fa
 /* Clickable rows */
 .td-clickable-row { cursor:pointer; }
 .td-clickable-row:hover { background:rgba(240,192,0,0.04) !important; }
-
-/* Status buttons (legacy) */
-.td-status-btns { display:flex; gap:0.35rem; flex-wrap:wrap; }
-.td-status-btn { padding:0.28rem 0.6rem; border-radius:6px; border:1px solid transparent; font-size:0.71rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.15s; text-transform:capitalize; }
-.td-status-btn--present { border-color:rgba(52,211,153,0.2); color:rgba(52,211,153,0.55); background:transparent; }
-.td-status-btn--absent  { border-color:rgba(224,82,82,0.2);  color:rgba(224,82,82,0.55);  background:transparent; }
-.td-status-btn--late    { border-color:rgba(240,192,0,0.2);   color:rgba(240,192,0,0.55);   background:transparent; }
-.td-status-btn--present.active { background:rgba(52,211,153,0.15); color:#34d399; border-color:#34d399; }
-.td-status-btn--absent.active  { background:rgba(224,82,82,0.15);  color:#e05252; border-color:#e05252; }
-.td-status-btn--late.active    { background:rgba(240,192,0,0.15);   color:#f0c000; border-color:#f0c000; }
 
 /* Fed button */
 .td-fed-btn { padding:0.3rem 0.7rem; border-radius:6px; border:1px solid rgba(255,255,255,0.1); background:transparent; color:rgba(255,255,255,0.3); font-size:0.75rem; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.15s; white-space:nowrap; }
