@@ -1,6 +1,6 @@
 // src/features/children/ChildRegisterForm.tsx
 import { useState } from "react";
-import { childStore } from "../../stores/childStore";
+import { childStore } from "../../stores/ChildStore";
 
 type FormData = {
   // Section 1 — Learner Personal Information

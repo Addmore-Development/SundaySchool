@@ -1,7 +1,7 @@
 // src/features/dashboard/SuperAdminDashboard.tsx
 import { useState, useMemo } from 'react';
 import { userStore } from '../../stores/userStore';
-import { childStore, type StoredChild } from '../../stores/childStore';
+import { childStore, type StoredChild } from '../../stores/ChildStore';
 
 interface Props {
   adminName?: string;
