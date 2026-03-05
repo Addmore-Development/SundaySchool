@@ -11,9 +11,27 @@
   padding: 0;
 }
 
-.landing {
+html {
   width: 100%;
   height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+.landing {
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 
@@ -22,9 +40,9 @@
 ══════════════════════════════════════════ */
 .landing__hero {
   position: relative;
-  width: 100vw;
-  height: 100vh;
-  min-height: 600px;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100svh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -70,6 +88,7 @@
   justify-content: space-between;
   padding: 20px 40px;
   flex-shrink: 0;
+  width: 100%;
 }
 
 /* ── Brand ── */
@@ -168,16 +187,19 @@
   text-align: center;
   padding: 20px 24px 20px;
   gap: 0;
+  width: 100%;
 }
 
-/* ── Heading ── */
+/* ── Heading — tight, no gap between lines ── */
 .landing__hero-heading {
   font-size: clamp(42px, 7vw, 80px);
   font-weight: 900;
-  line-height: 1.05;
+  line-height: 1.0;          /* tight — no excess space */
   letter-spacing: -2.5px;
   margin: 0 0 22px;
   animation: fadeUp 0.7s cubic-bezier(0.4, 0, 0.2, 1) both;
+  display: flex;
+  flex-direction: column;    /* stacks spans without <br> gap */
 }
 
 @keyframes fadeUp {
@@ -268,6 +290,7 @@
   text-transform: uppercase;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
   flex-shrink: 0;
+  width: 100%;
   animation: fadeIn 0.5s 0.6s ease both;
 }
 
@@ -279,6 +302,519 @@
 .landing__trust-dot {
   color: rgba(200, 168, 0, 0.5);
   font-size: 14px;
+}
+
+/* ══════════════════════════════════════════
+   GALLERY SECTION
+══════════════════════════════════════════ */
+.landing__gallery-section {
+  background: #0e1f14;
+  padding: 5rem 1.5rem 4rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  width: 100%;
+}
+
+.landing__gallery-inner {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.landing__gallery-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #c8a800;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+}
+
+.landing__gallery-heading {
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.6px;
+  margin-bottom: 0.5rem;
+  line-height: 1.1;
+}
+
+.landing__gallery-sub {
+  font-size: 0.92rem;
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 1.6;
+  max-width: 420px;
+  margin-bottom: 2.5rem;
+}
+
+/* ── Grid — exactly 3 photos ── */
+.landing__gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  width: 100%;
+  margin-bottom: 2.5rem;
+}
+
+@keyframes lp-galleryIn {
+  from { opacity: 0; transform: scale(0.96) translateY(12px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0); }
+}
+
+.landing__gallery-card {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  animation: lp-galleryIn 0.6s ease both;
+  cursor: pointer;
+}
+
+.landing__gallery-card:hover .landing__gallery-img {
+  transform: scale(1.06);
+}
+
+.landing__gallery-card:hover .landing__gallery-shimmer {
+  opacity: 1;
+}
+
+.landing__gallery-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+  display: block;
+}
+
+.landing__gallery-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    transparent 40%,
+    rgba(200, 168, 0, 0.08) 100%
+  );
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+/* ── Church Cares Button ── */
+.landing__church-cares-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1rem 2.25rem;
+  border-radius: 50px;
+  border: none;
+  background: #c8a800;
+  color: #0a2d18;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.22s;
+  box-shadow: 0 6px 28px rgba(200, 168, 0, 0.38);
+  letter-spacing: -0.2px;
+}
+
+.landing__church-cares-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 36px rgba(200, 168, 0, 0.55);
+  background: #d4b800;
+}
+
+.landing__church-cares-icon {
+  font-size: 1.1rem;
+  animation: lp-heartbeat 1.6s ease infinite;
+}
+
+@keyframes lp-heartbeat {
+  0%, 100% { transform: scale(1); }
+  14%       { transform: scale(1.2); }
+  28%       { transform: scale(1); }
+  42%       { transform: scale(1.15); }
+  56%       { transform: scale(1); }
+}
+
+/* ══════════════════════════════════════════
+   DONATION MODAL
+══════════════════════════════════════════ */
+.lp-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(2, 8, 4, 0.85);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: fadeIn 0.2s ease both;
+}
+
+.lp-modal {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90dvh;
+  overflow-y: auto;
+  background: #091209;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 20px;
+  padding: clamp(24px, 4vw, 40px);
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.7);
+  animation: lp-slideUp 0.3s ease both;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+@keyframes lp-slideUp {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+.lp-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.18s;
+}
+
+.lp-modal-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.lp-modal-header {
+  text-align: center;
+  margin-bottom: 1.75rem;
+}
+
+.lp-modal-icon {
+  font-size: 2.4rem;
+  line-height: 1;
+  margin-bottom: 0.6rem;
+  animation: lp-heartbeat 1.6s ease infinite;
+  display: block;
+}
+
+.lp-modal-title {
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.4px;
+  margin-bottom: 0.4rem;
+}
+
+.lp-modal-subtitle {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.6;
+  max-width: 340px;
+  margin: 0 auto;
+}
+
+/* ── Donation Form ── */
+.lp-donate-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.lp-donate-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.lp-donate-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 0.4rem;
+  letter-spacing: 0.2px;
+}
+
+.lp-donate-opt {
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.lp-donate-input {
+  padding: 0.75rem 0.9rem;
+  border-radius: 9px;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.lp-donate-input:focus {
+  border-color: #c8a800;
+  box-shadow: 0 0 0 3px rgba(200, 168, 0, 0.12);
+}
+
+.lp-donate-input--err {
+  border-color: #f87171 !important;
+}
+
+.lp-donate-input::placeholder {
+  color: rgba(255, 255, 255, 0.22);
+}
+
+.lp-donate-textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.lp-donate-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.lp-donate-err {
+  font-size: 0.72rem;
+  color: #f87171;
+  margin-top: 0.3rem;
+}
+
+.lp-donate-hint {
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.28);
+  margin-top: 0.25rem;
+}
+
+/* ── Amount pills ── */
+.lp-donate-amounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.lp-donate-amount-btn {
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.5);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.lp-donate-amount-btn:hover {
+  border-color: rgba(200, 168, 0, 0.4);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.lp-donate-amount-btn--active {
+  background: rgba(200, 168, 0, 0.12);
+  border-color: #c8a800;
+  color: #c8a800;
+}
+
+/* ── POPIA notice ── */
+.lp-donate-popia {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.28);
+  line-height: 1.5;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.lp-donate-btn-primary {
+  width: 100%;
+  padding: 0.85rem;
+  border-radius: 9px;
+  border: none;
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  color: #fff;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 20px rgba(220, 38, 38, 0.3);
+}
+
+.lp-donate-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 28px rgba(220, 38, 38, 0.45);
+}
+
+/* ── Donation Success ── */
+.lp-donate-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1rem;
+  padding: 1rem 0;
+}
+
+.lp-donate-success-icon {
+  font-size: 3rem;
+  line-height: 1;
+  animation: lp-heartbeat 1.6s ease infinite;
+}
+
+.lp-donate-success-title {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #fff;
+}
+
+.lp-donate-success-body {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.65;
+  max-width: 320px;
+}
+
+.lp-donate-success-body strong {
+  color: #c8a800;
+}
+
+/* ══════════════════════════════════════════
+   FOOTER
+══════════════════════════════════════════ */
+.landing__footer {
+  width: 100%;
+  background: #040d07;
+  border-top: 1px solid rgba(200, 168, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  padding: 3.5rem 1.5rem 2.5rem;
+}
+
+/* ── Logo ── */
+.landing__footer-logo-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.landing__footer-logo {
+  width: 52px;
+  height: 52px;
+  background: linear-gradient(135deg, #c8a800, #e8c800);
+  color: #0a2d18;
+  font-weight: 900;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  letter-spacing: -0.5px;
+  box-shadow: 0 4px 18px rgba(200, 168, 0, 0.35);
+}
+
+.landing__footer-logo-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.3px;
+}
+
+/* ── Contact row ── */
+.landing__footer-contact {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.landing__footer-phone {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+  letter-spacing: 0.5px;
+}
+
+.landing__footer-hours {
+  font-size: 12px;
+  font-weight: 700;
+  color: #c8a800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+.landing__footer-email {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.2px;
+}
+
+/* ── Social icons ── */
+.landing__footer-socials {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.landing__footer-social {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.5);
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.landing__footer-social svg {
+  width: 18px;
+  height: 18px;
+}
+
+.landing__footer-social:hover {
+  border-color: #c8a800;
+  color: #c8a800;
+  background: rgba(200, 168, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+/* ── Copyright ── */
+.landing__footer-copy {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.25);
+  letter-spacing: 0.3px;
+  text-align: center;
 }
 
 /* ══════════════════════════════════════════
@@ -338,6 +874,17 @@
     margin-bottom: 28px;
   }
 
+  .landing__hero-content {
+    padding: 16px 18px 16px;
+    justify-content: flex-start;
+    padding-top: 2rem;
+  }
+
+  .landing__feature-cards {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+  }
+
   .landing__feature-card {
     padding: 18px 16px;
   }
@@ -348,6 +895,48 @@
     gap: 8px;
     flex-wrap: wrap;
     padding: 14px 16px;
+  }
+
+  .landing__gallery-section {
+    padding: 3rem 1rem 3rem;
+  }
+
+  .landing__gallery-grid {
+    gap: 0.5rem;
+  }
+
+  .landing__gallery-card {
+    aspect-ratio: 1 / 1;
+  }
+
+  .landing__church-cares-btn {
+    font-size: 0.88rem;
+    padding: 0.85rem 1.5rem;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .lp-donate-row-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .lp-modal {
+    padding: 22px 18px;
+  }
+
+  .lp-modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .lp-modal {
+    border-radius: 20px 20px 0 0;
+    max-height: 92dvh;
+  }
+
+  .landing__footer-contact {
+    flex-direction: column;
+    gap: 0.4rem;
   }
 }
 
