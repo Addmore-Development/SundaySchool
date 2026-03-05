@@ -154,8 +154,9 @@ export default function SuperAdminRegisterPage({ onBack, onLoginInstead, onSucce
       role:     'super_admin',
       phone:    form.phone.trim(),
       position: form.position,
-      idNumber: form.idNumber,
-    });
+    } as any);
+    // Store idNumber separately — not part of the base StoredUser type
+    (saved as any).idNumber = form.idNumber;
 
     sessionStorage.setItem('currentUser', JSON.stringify({
       id:    saved.id,
