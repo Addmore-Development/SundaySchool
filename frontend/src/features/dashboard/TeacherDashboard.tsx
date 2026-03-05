@@ -1,10 +1,11 @@
 // src/features/dashboard/TeacherDashboard.tsx
-// Enhanced: family profiles, pie/bar charts, learner popup with attendance override
+// Updated: centered layout, inline attendance dropdowns, register override popup,
+// fed filter, SA ID/phone format, report synced to attendance tab, green palette
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 
 interface MockUser { name: string; email: string; phone: string; role: string; }
-interface TeacherDashboardProps { user?: MockUser; onLogout?: () => void; }
+interface TeacherDashboardProps { user?: MockUser; onLogout?: () => void; onRegisterFamily?: () => void; }
 
 interface Child {
   id: string; firstName: string; lastName: string; grade: string;
@@ -12,6 +13,9 @@ interface Child {
   hasAllergies: boolean; allergiesDetails?: string;
   hasMedicalCondition: boolean; medicalDetails?: string;
   parentName: string; parentPhone: string; parentEmail: string;
+  idNumber?: string;
+  parentIdNumber?: string;
+  employmentStatus?: string;
   attendanceRate: number; welfareFlags: number;
   registeredBy: 'parent' | 'teacher';
   guardianRelationship?: string; address?: string; emergencyContact?: string;
@@ -37,18 +41,22 @@ const getSundaysInRange = (startISO: string, endISO: string): string[] => {
   return result;
 };
 
+// SA validation helpers
+const validateSAID = (val: string) => /^\d{13}$/.test(val);
+const validateSAPhone = (val: string) => /^\+27\d{9}$/.test(val.replace(/\s/g, ''));
+
 const AVATAR_PALETTE = ['#2d6a4f','#1e6091','#6d3e91','#a05c34','#1a6b6b','#8b3a3a','#4a6741','#1a5276','#6e2f8a'];
 const PRESET_COLORS: Record<string, string> = { k1:'#2d6a4f', k2:'#1e6091', k3:'#6d3e91', k4:'#a05c34', k5:'#1a6b6b', k6:'#8b3a3a', k7:'#4a6741' };
 const avatarColor = (id: string, idx: number) => PRESET_COLORS[id] ?? AVATAR_PALETTE[idx % AVATAR_PALETTE.length];
 
 const INITIAL_CHILDREN: Child[] = [
-  { id:'k1', firstName:'Amara',  lastName:'Dlamini',  grade:'Grade 3', dateOfBirth:'2016-03-14', age:7,  gender:'female', hasAllergies:true,  allergiesDetails:'Peanuts',     hasMedicalCondition:false, parentName:'Nomsa Dlamini',  parentPhone:'+27 82 111 2233', parentEmail:'nomsa@demo.church',  attendanceRate:92, welfareFlags:0, registeredBy:'parent', guardianRelationship:'Mother', address:'14 Jacaranda St, Soweto', emergencyContact:'+27 82 999 1111', notes:'Loves singing in praise team', registeredDate:'2025-01-12' },
-  { id:'k2', firstName:'Sipho',  lastName:'Dlamini',  grade:'Grade 3', dateOfBirth:'2014-07-22', age:9,  gender:'male',   hasAllergies:false,                                  hasMedicalCondition:true,  medicalDetails:'Asthma',   parentName:'Nomsa Dlamini',  parentPhone:'+27 82 111 2233', parentEmail:'nomsa@demo.church',  attendanceRate:78, welfareFlags:1, registeredBy:'parent', guardianRelationship:'Mother', address:'14 Jacaranda St, Soweto', emergencyContact:'+27 82 999 1111', notes:'Has inhaler — kept in bag', registeredDate:'2025-01-12' },
-  { id:'k3', firstName:'Lerato', lastName:'Mokoena',  grade:'Grade 3', dateOfBirth:'2015-11-08', age:8,  gender:'female', hasAllergies:false,                                  hasMedicalCondition:false,                             parentName:'James Mokoena',  parentPhone:'+27 71 222 3344', parentEmail:'james@church.co.za',  attendanceRate:88, welfareFlags:0, registeredBy:'parent', guardianRelationship:'Father', address:'8 Protea Ave, Tembisa', emergencyContact:'+27 71 888 2222', registeredDate:'2025-02-03' },
-  { id:'k4', firstName:'Thabo',  lastName:'Sithole',  grade:'Grade 3', dateOfBirth:'2013-05-17', age:10, gender:'male',   hasAllergies:false,                                  hasMedicalCondition:false,                             parentName:'Grace Sithole',  parentPhone:'+27 83 333 4455', parentEmail:'grace@church.co.za',  attendanceRate:95, welfareFlags:0, registeredBy:'parent', guardianRelationship:'Mother', address:'22 Bougainvillea Rd, Sandton', emergencyContact:'+27 83 777 3333', registeredDate:'2025-01-20' },
-  { id:'k5', firstName:'Naledi', lastName:'Khumalo',  grade:'Grade 3', dateOfBirth:'2015-09-03', age:8,  gender:'female', hasAllergies:true,  allergiesDetails:'Dairy, eggs', hasMedicalCondition:false,                             parentName:'Ruth Khumalo',   parentPhone:'+27 72 444 5566', parentEmail:'ruth@church.co.za',   attendanceRate:70, welfareFlags:0, registeredBy:'parent', guardianRelationship:'Mother', address:'5 Ndlovu St, Alex', emergencyContact:'+27 72 666 4444', registeredDate:'2025-03-01' },
-  { id:'k6', firstName:'Kabelo', lastName:'Mahlangu', grade:'Grade 3', dateOfBirth:'2014-12-01', age:9,  gender:'male',   hasAllergies:false,                                  hasMedicalCondition:false,                             parentName:'Peter Mahlangu', parentPhone:'+27 84 555 6677', parentEmail:'peter@church.co.za',  attendanceRate:83, welfareFlags:0, registeredBy:'teacher', guardianRelationship:'Father', address:'31 Impala Cres, Midrand', emergencyContact:'+27 84 555 5555', notes:'Registered by teacher on parent\'s behalf', registeredDate:'2025-04-15' },
-  { id:'k7', firstName:'Zintle', lastName:'Mthembu',  grade:'Grade 3', dateOfBirth:'2016-01-25', age:7,  gender:'female', hasAllergies:false,                                  hasMedicalCondition:false,                             parentName:'Faith Mthembu',  parentPhone:'+27 73 666 7788', parentEmail:'faith@church.co.za',  attendanceRate:60, welfareFlags:2, registeredBy:'teacher', guardianRelationship:'Grandmother', address:'77 Thabo Nkosi Rd, Katlehong', emergencyContact:'+27 73 444 6666', notes:'Grandmother is primary caregiver', registeredDate:'2025-04-20' },
+  { id:'k1', firstName:'Amara',  lastName:'Dlamini',  grade:'Grade 3', dateOfBirth:'2016-03-14', age:7,  gender:'female', hasAllergies:true,  allergiesDetails:'Peanuts',     hasMedicalCondition:false, parentName:'Nomsa Dlamini',  parentPhone:'+27821112233', parentEmail:'nomsa@demo.church',  idNumber:'0603140123456', parentIdNumber:'8801015009087', employmentStatus:'Employed (Full-time)', attendanceRate:92, welfareFlags:0, registeredBy:'parent', guardianRelationship:'Mother', address:'14 Jacaranda St, Soweto', emergencyContact:'+27829991111', notes:'Loves singing in praise team', registeredDate:'2025-01-12' },
+  { id:'k2', firstName:'Sipho',  lastName:'Dlamini',  grade:'Grade 3', dateOfBirth:'2014-07-22', age:9,  gender:'male',   hasAllergies:false,                                  hasMedicalCondition:true,  medicalDetails:'Asthma',   parentName:'Nomsa Dlamini',  parentPhone:'+27821112233', parentEmail:'nomsa@demo.church',  idNumber:'0607220123456', parentIdNumber:'8801015009087', employmentStatus:'Employed (Full-time)', attendanceRate:78, welfareFlags:1, registeredBy:'parent', guardianRelationship:'Mother', address:'14 Jacaranda St, Soweto', emergencyContact:'+27829991111', notes:'Has inhaler — kept in bag', registeredDate:'2025-01-12' },
+  { id:'k3', firstName:'Lerato', lastName:'Mokoena',  grade:'Grade 3', dateOfBirth:'2015-11-08', age:8,  gender:'female', hasAllergies:false,                                  hasMedicalCondition:false,                             parentName:'James Mokoena',  parentPhone:'+27712223344', parentEmail:'james@church.co.za',  idNumber:'0511080123456', parentIdNumber:'7903125009081', employmentStatus:'Self-employed', attendanceRate:88, welfareFlags:0, registeredBy:'parent', guardianRelationship:'Father', address:'8 Protea Ave, Tembisa', emergencyContact:'+27718882222', registeredDate:'2025-02-03' },
+  { id:'k4', firstName:'Thabo',  lastName:'Sithole',  grade:'Grade 3', dateOfBirth:'2013-05-17', age:10, gender:'male',   hasAllergies:false,                                  hasMedicalCondition:false,                             parentName:'Grace Sithole',  parentPhone:'+27833334455', parentEmail:'grace@church.co.za',  idNumber:'0305170123456', parentIdNumber:'8504230009083', employmentStatus:'Employed (Full-time)', attendanceRate:95, welfareFlags:0, registeredBy:'parent', guardianRelationship:'Mother', address:'22 Bougainvillea Rd, Sandton', emergencyContact:'+27837773333', registeredDate:'2025-01-20' },
+  { id:'k5', firstName:'Naledi', lastName:'Khumalo',  grade:'Grade 3', dateOfBirth:'2015-09-03', age:8,  gender:'female', hasAllergies:true,  allergiesDetails:'Dairy, eggs', hasMedicalCondition:false,                             parentName:'Ruth Khumalo',   parentPhone:'+27724445566', parentEmail:'ruth@church.co.za',   idNumber:'0509030123456', parentIdNumber:'9002145009086', employmentStatus:'Unemployed', attendanceRate:70, welfareFlags:0, registeredBy:'parent', guardianRelationship:'Mother', address:'5 Ndlovu St, Alex', emergencyContact:'+27726664444', registeredDate:'2025-03-01' },
+  { id:'k6', firstName:'Kabelo', lastName:'Mahlangu', grade:'Grade 3', dateOfBirth:'2014-12-01', age:9,  gender:'male',   hasAllergies:false,                                  hasMedicalCondition:false,                             parentName:'Peter Mahlangu', parentPhone:'+27845556677', parentEmail:'peter@church.co.za',  idNumber:'0412010123456', parentIdNumber:'7706085009082', employmentStatus:'Employed (Part-time)', attendanceRate:83, welfareFlags:0, registeredBy:'teacher', guardianRelationship:'Father', address:'31 Impala Cres, Midrand', emergencyContact:'+27845555555', notes:'Registered by teacher on parent\'s behalf', registeredDate:'2025-04-15' },
+  { id:'k7', firstName:'Zintle', lastName:'Mthembu',  grade:'Grade 3', dateOfBirth:'2016-01-25', age:7,  gender:'female', hasAllergies:false,                                  hasMedicalCondition:false,                             parentName:'Faith Mthembu',  parentPhone:'+27736667788', parentEmail:'faith@church.co.za',  idNumber:'0601250123456', parentIdNumber:'5509155009089', employmentStatus:'Pensioner', attendanceRate:60, welfareFlags:2, registeredBy:'teacher', guardianRelationship:'Grandmother', address:'77 Thabo Nkosi Rd, Katlehong', emergencyContact:'+27734446666', notes:'Grandmother is primary caregiver', registeredDate:'2025-04-20' },
 ];
 
 const INITIAL_WELFARE: WelfareFlag[] = [
@@ -89,9 +97,9 @@ function PieChart({ data, size = 160 }: { data: { label: string; value: number; 
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       <circle cx={cx} cy={cy} r={r + 7} fill="rgba(255,255,255,0.02)" />
       {slices.map((s, i) => (
-        <path key={i} d={s.path} fill={s.color} stroke="#0a0f1e" strokeWidth="2" opacity={0.9} />
+        <path key={i} d={s.path} fill={s.color} stroke="#0d1f0d" strokeWidth="2" opacity={0.9} />
       ))}
-      <circle cx={cx} cy={cy} r={r * 0.52} fill="#0a0f1e" />
+      <circle cx={cx} cy={cy} r={r * 0.52} fill="#0d1f0d" />
       <text x={cx} y={cy - 5} textAnchor="middle" fill="#fff" fontSize="18" fontFamily="'Bebas Neue',sans-serif">{total}</text>
       <text x={cx} y={cy + 13} textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="9" fontFamily="'DM Sans',sans-serif">TOTAL</text>
     </svg>
@@ -115,7 +123,7 @@ function BarChart({ stats }: { stats: { date: string; pct: number; present: numb
         {stats.map((s, i) => {
           const x = 45 + i * (barW + 10);
           const barH = Math.max((s.pct / 100) * chartH, 3);
-          const color = s.pct >= 80 ? '#34d399' : s.pct >= 60 ? '#fbbf24' : '#f87171';
+          const color = s.pct >= 80 ? '#6db33f' : s.pct >= 60 ? '#c8a84b' : '#e05252';
           const label = new Date(s.date + 'T00:00:00').toLocaleDateString('en-ZA', { day:'numeric', month:'short' });
           return (
             <g key={s.date}>
@@ -133,8 +141,8 @@ function BarChart({ stats }: { stats: { date: string; pct: number; present: numb
   );
 }
 
-// ─── Child Profile Popup ──────────────────────────────────────────────────────
-function ChildProfilePopup({ child, idx, attendanceHistory, savedSundays, onClose, onOverride }: {
+// ─── Register Override Popup (Class Register tab only) ────────────────────────
+function RegisterOverridePopup({ child, idx, attendanceHistory, savedSundays, onClose, onOverride }: {
   child: Child; idx: number;
   attendanceHistory: DailyAttendanceRecord[];
   savedSundays: string[];
@@ -159,7 +167,7 @@ function ChildProfilePopup({ child, idx, attendanceHistory, savedSundays, onClos
     return entry?.status === 'present' || entry?.status === 'late';
   }).length;
   const pct = savedSundays.length ? Math.round((attended / savedSundays.length) * 100) : 0;
-  const pctColor = pct >= 80 ? '#34d399' : pct >= 60 ? '#fbbf24' : '#f87171';
+  const pctColor = pct >= 80 ? '#6db33f' : pct >= 60 ? '#c8a84b' : '#e05252';
 
   const recentDates = [...savedSundays].reverse().slice(0, 8);
 
@@ -170,9 +178,8 @@ function ChildProfilePopup({ child, idx, attendanceHistory, savedSundays, onClos
   };
 
   return (
-    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', backdropFilter:'blur(6px)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}>
-      <div ref={ref} style={{ width:'100%', maxWidth:560, maxHeight:'90vh', overflowY:'auto', background:'linear-gradient(145deg,#0d1b2a,#060f08)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:20, boxShadow:'0 40px 80px rgba(0,0,0,0.7)', scrollbarWidth:'thin' }}>
-        {/* Header */}
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.75)', backdropFilter:'blur(6px)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}>
+      <div ref={ref} style={{ width:'100%', maxWidth:560, maxHeight:'90vh', overflowY:'auto', background:'linear-gradient(145deg,#162016,#0d1a0d)', border:'1px solid rgba(109,179,63,0.2)', borderRadius:20, boxShadow:'0 40px 80px rgba(0,0,0,0.7)', scrollbarWidth:'thin' }}>
         <div style={{ background:`linear-gradient(135deg,${color}40,${color}15)`, borderRadius:'20px 20px 0 0', padding:'1.5rem', borderBottom:'1px solid rgba(255,255,255,0.07)', position:'relative' }}>
           <button onClick={onClose} style={{ position:'absolute', top:'1rem', right:'1rem', background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.12)', color:'rgba(255,255,255,0.6)', borderRadius:8, width:32, height:32, cursor:'pointer', fontSize:'1rem', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'DM Sans',sans-serif" }}>✕</button>
           <div style={{ display:'flex', alignItems:'center', gap:'1rem' }}>
@@ -181,22 +188,21 @@ function ChildProfilePopup({ child, idx, attendanceHistory, savedSundays, onClos
               <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:'1.5rem', color:'#fff', letterSpacing:'1px' }}>{child.firstName} {child.lastName}</div>
               <div style={{ fontSize:'0.78rem', color:'rgba(255,255,255,0.5)', marginTop:2 }}>{child.grade} · Age {child.age} · {child.gender}</div>
               <div style={{ display:'flex', gap:'0.5rem', marginTop:'0.5rem', flexWrap:'wrap' }}>
-                {child.registeredBy === 'teacher' && <span style={{ fontSize:'0.65rem', fontWeight:700, color:'#60a5fa', background:'rgba(96,165,250,0.1)', border:'1px solid rgba(96,165,250,0.2)', padding:'0.15rem 0.5rem', borderRadius:20 }}>Registered by Teacher</span>}
-                {child.hasAllergies && <span style={{ fontSize:'0.65rem', fontWeight:700, color:'#fbbf24', background:'rgba(251,191,36,0.1)', border:'1px solid rgba(251,191,36,0.2)', padding:'0.15rem 0.5rem', borderRadius:20 }}>⚠ Allergy</span>}
-                {child.hasMedicalCondition && <span style={{ fontSize:'0.65rem', fontWeight:700, color:'#f87171', background:'rgba(248,113,113,0.1)', border:'1px solid rgba(248,113,113,0.2)', padding:'0.15rem 0.5rem', borderRadius:20 }}>⚕ Medical</span>}
-                {child.welfareFlags > 0 && <span style={{ fontSize:'0.65rem', fontWeight:700, color:'#f87171', background:'rgba(248,113,113,0.1)', border:'1px solid rgba(248,113,113,0.2)', padding:'0.15rem 0.5rem', borderRadius:20 }}>🚩 Welfare Flagged</span>}
+                {child.registeredBy === 'teacher' && <span style={{ fontSize:'0.65rem', fontWeight:700, color:'#c8a84b', background:'rgba(200,168,75,0.1)', border:'1px solid rgba(200,168,75,0.2)', padding:'0.15rem 0.5rem', borderRadius:20 }}>Registered by Teacher</span>}
+                {child.hasAllergies && <span style={{ fontSize:'0.65rem', fontWeight:700, color:'#c8a84b', background:'rgba(200,168,75,0.1)', border:'1px solid rgba(200,168,75,0.2)', padding:'0.15rem 0.5rem', borderRadius:20 }}>⚠ Allergy</span>}
+                {child.hasMedicalCondition && <span style={{ fontSize:'0.65rem', fontWeight:700, color:'#e05252', background:'rgba(224,82,82,0.1)', border:'1px solid rgba(224,82,82,0.2)', padding:'0.15rem 0.5rem', borderRadius:20 }}>⚕ Medical</span>}
+                {child.welfareFlags > 0 && <span style={{ fontSize:'0.65rem', fontWeight:700, color:'#e05252', background:'rgba(224,82,82,0.1)', border:'1px solid rgba(224,82,82,0.2)', padding:'0.15rem 0.5rem', borderRadius:20 }}>🚩 Welfare Flagged</span>}
               </div>
             </div>
           </div>
         </div>
 
         <div style={{ padding:'1.25rem', display:'flex', flexDirection:'column', gap:'1rem' }}>
-          {/* Attendance rate pill */}
           <div style={{ display:'flex', gap:'0.75rem' }}>
             {[
               { l:'Attendance', v:`${pct}%`, c:pctColor },
-              { l:'Sessions', v:`${attended}/${savedSundays.length}`, c:'#60a5fa' },
-              { l:'Welfare Flags', v:child.welfareFlags, c: child.welfareFlags > 0 ? '#f87171' : 'rgba(255,255,255,0.3)' },
+              { l:'Sessions', v:`${attended}/${savedSundays.length}`, c:'#c8a84b' },
+              { l:'Welfare Flags', v:child.welfareFlags, c: child.welfareFlags > 0 ? '#e05252' : 'rgba(255,255,255,0.3)' },
             ].map(({ l, v, c }) => (
               <div key={l} style={{ flex:1, textAlign:'center', padding:'0.75rem', borderRadius:10, background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ fontSize:'1.3rem', fontFamily:"'Bebas Neue',sans-serif", color: c as string }}>{v}</div>
@@ -205,7 +211,6 @@ function ChildProfilePopup({ child, idx, attendanceHistory, savedSundays, onClos
             ))}
           </div>
 
-          {/* Recent attendance streak */}
           <div style={{ background:'rgba(255,255,255,0.025)', border:'1px solid rgba(255,255,255,0.065)', borderRadius:12, padding:'0.9rem' }}>
             <div style={{ fontSize:'0.68rem', fontWeight:700, color:'rgba(255,255,255,0.35)', textTransform:'uppercase', letterSpacing:'0.8px', marginBottom:'0.65rem' }}>Recent Sessions</div>
             <div style={{ display:'flex', gap:'0.4rem', flexWrap:'wrap' }}>
@@ -215,7 +220,7 @@ function ChildProfilePopup({ child, idx, attendanceHistory, savedSundays, onClos
                     const rec = attendanceHistory.find(r => r.date === date);
                     const entry = rec?.entries.find(e => e.childId === child.id);
                     const s = entry?.status;
-                    const c = s === 'present' ? '#34d399' : s === 'absent' ? '#f87171' : s === 'late' ? '#fbbf24' : 'rgba(255,255,255,0.2)';
+                    const c = s === 'present' ? '#6db33f' : s === 'absent' ? '#e05252' : s === 'late' ? '#c8a84b' : 'rgba(255,255,255,0.2)';
                     const icon = s === 'present' ? '✓' : s === 'absent' ? '✗' : s === 'late' ? '~' : '—';
                     return (
                       <div key={date} title={`${fmtDate(date)}: ${s ?? 'no record'}`} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3 }}>
@@ -229,7 +234,6 @@ function ChildProfilePopup({ child, idx, attendanceHistory, savedSundays, onClos
             </div>
           </div>
 
-          {/* Guardian info */}
           <div style={{ background:'rgba(255,255,255,0.025)', border:'1px solid rgba(255,255,255,0.065)', borderRadius:12, padding:'0.9rem' }}>
             <div style={{ fontSize:'0.68rem', fontWeight:700, color:'rgba(255,255,255,0.35)', textTransform:'uppercase', letterSpacing:'0.8px', marginBottom:'0.65rem' }}>Guardian Info</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.5rem' }}>
@@ -247,21 +251,25 @@ function ChildProfilePopup({ child, idx, attendanceHistory, savedSundays, onClos
                 </div>
               ))}
             </div>
+            {child.idNumber && (
+              <div style={{ marginTop:'0.6rem', paddingTop:'0.6rem', borderTop:'1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ fontSize:'0.65rem', color:'rgba(255,255,255,0.3)', marginBottom:2 }}>SA ID Number</div>
+                <div style={{ fontSize:'0.8rem', color:'#fff', fontWeight:500, fontFamily:'monospace', letterSpacing:'1px' }}>{child.idNumber}</div>
+              </div>
+            )}
           </div>
 
-          {/* Medical */}
           {(child.hasAllergies || child.hasMedicalCondition || child.notes) && (
-            <div style={{ background:'rgba(251,191,36,0.05)', border:'1px solid rgba(251,191,36,0.15)', borderRadius:12, padding:'0.9rem' }}>
-              <div style={{ fontSize:'0.68rem', fontWeight:700, color:'#fbbf24', textTransform:'uppercase', letterSpacing:'0.8px', marginBottom:'0.6rem' }}>⚠ Health & Notes</div>
-              {child.hasAllergies && <div style={{ fontSize:'0.8rem', color:'#fbbf24', marginBottom:4 }}>Allergy: {child.allergiesDetails}</div>}
-              {child.hasMedicalCondition && <div style={{ fontSize:'0.8rem', color:'#f87171', marginBottom:4 }}>Medical: {child.medicalDetails}</div>}
+            <div style={{ background:'rgba(200,168,75,0.05)', border:'1px solid rgba(200,168,75,0.15)', borderRadius:12, padding:'0.9rem' }}>
+              <div style={{ fontSize:'0.68rem', fontWeight:700, color:'#c8a84b', textTransform:'uppercase', letterSpacing:'0.8px', marginBottom:'0.6rem' }}>⚠ Health & Notes</div>
+              {child.hasAllergies && <div style={{ fontSize:'0.8rem', color:'#c8a84b', marginBottom:4 }}>Allergy: {child.allergiesDetails}</div>}
+              {child.hasMedicalCondition && <div style={{ fontSize:'0.8rem', color:'#e05252', marginBottom:4 }}>Medical: {child.medicalDetails}</div>}
               {child.notes && <div style={{ fontSize:'0.78rem', color:'rgba(255,255,255,0.5)', fontStyle:'italic' }}>{child.notes}</div>}
             </div>
           )}
 
-          {/* Override attendance — FIX: removed duplicate `border` key */}
-          <div style={{ background:'rgba(96,165,250,0.05)', border:'1px solid rgba(96,165,250,0.18)', borderRadius:12, padding:'0.9rem' }}>
-            <div style={{ fontSize:'0.68rem', fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.8px', marginBottom:'0.75rem' }}>🔓 Override Attendance</div>
+          <div style={{ background:'rgba(109,179,63,0.05)', border:'1px solid rgba(109,179,63,0.2)', borderRadius:12, padding:'0.9rem' }}>
+            <div style={{ fontSize:'0.68rem', fontWeight:700, color:'#6db33f', textTransform:'uppercase', letterSpacing:'0.8px', marginBottom:'0.75rem' }}>🔓 Override Attendance</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.65rem', marginBottom:'0.75rem' }}>
               <div>
                 <label style={{ ...WL, color:'rgba(255,255,255,0.5)', fontSize:'0.7rem' }}>Date</label>
@@ -276,21 +284,15 @@ function ChildProfilePopup({ child, idx, attendanceHistory, savedSundays, onClos
                 </select>
               </div>
             </div>
-            {/* ✅ FIX: single `border` property via conditional — no duplicate key */}
             <button
               onClick={handleOverride}
               style={{
-                width: '100%',
-                padding: '0.65rem',
-                borderRadius: 8,
-                background: overrideSaved ? 'rgba(52,211,153,0.2)' : 'linear-gradient(135deg,#60a5fa,#2563eb)',
-                color: overrideSaved ? '#34d399' : '#fff',
-                fontFamily: "'DM Sans',sans-serif",
-                fontWeight: 700,
-                fontSize: '0.875rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                border: overrideSaved ? '1px solid rgba(52,211,153,0.3)' : '1px solid transparent',
+                width: '100%', padding: '0.65rem', borderRadius: 8,
+                background: overrideSaved ? 'rgba(109,179,63,0.2)' : 'linear-gradient(135deg,#6db33f,#4a8a28)',
+                color: overrideSaved ? '#6db33f' : '#fff',
+                fontFamily: "'DM Sans',sans-serif", fontWeight: 700, fontSize: '0.875rem',
+                cursor: 'pointer', transition: 'all 0.2s',
+                border: overrideSaved ? '1px solid rgba(109,179,63,0.3)' : '1px solid transparent',
               }}
             >
               {overrideSaved ? '✓ Override Applied' : '↑ Apply Override'}
@@ -311,7 +313,7 @@ function ChildProfilePopup({ child, idx, attendanceHistory, savedSundays, onClos
 
 // ─── Family Profile Card ──────────────────────────────────────────────────────
 function FamilyProfileCard({ family, children, idx, onClose }: {
-  family: { parentName: string; parentPhone: string; parentEmail: string; registeredBy: 'parent'|'teacher'; address?: string; children: Child[] };
+  family: { parentName: string; parentPhone: string; parentEmail: string; registeredBy: 'parent'|'teacher'; address?: string; emergencyContact?: string; parentIdNumber?: string; employmentStatus?: string; guardianRelationship?: string; children: Child[] };
   children: Child[]; idx: number; onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -322,51 +324,83 @@ function FamilyProfileCard({ family, children, idx, onClose }: {
   }, [onClose]);
 
   return (
-    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', backdropFilter:'blur(6px)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}>
-      <div ref={ref} style={{ width:'100%', maxWidth:500, background:'linear-gradient(145deg,#0d1b2a,#060f08)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:20, boxShadow:'0 40px 80px rgba(0,0,0,0.7)', overflow:'hidden', maxHeight:'85vh', overflowY:'auto' }}>
-        <div style={{ background:'linear-gradient(135deg,rgba(96,165,250,0.2),rgba(96,165,250,0.05))', padding:'1.5rem', borderBottom:'1px solid rgba(255,255,255,0.07)', position:'relative' }}>
-          <button onClick={onClose} style={{ position:'absolute', top:'1rem', right:'1rem', background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.12)', color:'rgba(255,255,255,0.6)', borderRadius:8, width:32, height:32, cursor:'pointer', fontSize:'1rem', fontFamily:"'DM Sans',sans-serif" }}>✕</button>
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.75)', backdropFilter:'blur(6px)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}>
+      <div ref={ref} style={{ width:'100%', maxWidth:540, background:'linear-gradient(145deg,#162016,#0d1a0d)', border:'1px solid rgba(109,179,63,0.2)', borderRadius:20, boxShadow:'0 40px 80px rgba(0,0,0,0.7)', overflow:'hidden', maxHeight:'90vh', overflowY:'auto', scrollbarWidth:'thin' }}>
+
+        {/* Header */}
+        <div style={{ background:'linear-gradient(135deg,rgba(109,179,63,0.2),rgba(109,179,63,0.05))', padding:'1.5rem', borderBottom:'1px solid rgba(255,255,255,0.07)', position:'relative' }}>
+          <button onClick={onClose} style={{ position:'absolute', top:'1rem', right:'1rem', background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.12)', color:'rgba(255,255,255,0.6)', borderRadius:8, width:32, height:32, cursor:'pointer', fontSize:'1rem', fontFamily:"'DM Sans',sans-serif", display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
           <div style={{ display:'flex', alignItems:'center', gap:'1rem' }}>
-            <div style={{ width:54, height:54, borderRadius:'50%', background:'linear-gradient(135deg,#60a5fa,#2563eb)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.4rem' }}>👨‍👩‍👧</div>
+            <div style={{ width:58, height:58, borderRadius:'50%', background:'linear-gradient(135deg,#6db33f,#4a8a28)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.5rem', flexShrink:0, boxShadow:'0 0 20px rgba(109,179,63,0.3)' }}>👨‍👩‍👧</div>
             <div>
-              <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:'1.4rem', color:'#fff', letterSpacing:'1px' }}>{family.parentName}</div>
-              <div style={{ fontSize:'0.75rem', color:'rgba(255,255,255,0.45)', marginTop:2 }}>{family.children.length} child{family.children.length !== 1 ? 'ren' : ''} registered</div>
-              <span style={{ display:'inline-block', marginTop:'0.4rem', fontSize:'0.65rem', fontWeight:700, padding:'0.15rem 0.5rem', borderRadius:20, color: family.registeredBy === 'teacher' ? '#60a5fa' : '#34d399', background: family.registeredBy === 'teacher' ? 'rgba(96,165,250,0.1)' : 'rgba(52,211,153,0.1)', border:`1px solid ${family.registeredBy === 'teacher' ? 'rgba(96,165,250,0.2)' : 'rgba(52,211,153,0.2)'}` }}>
-                {family.registeredBy === 'teacher' ? 'Teacher-registered' : 'Parent-registered'}
-              </span>
+              <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:'1.5rem', color:'#fff', letterSpacing:'1px' }}>{family.parentName}</div>
+              <div style={{ fontSize:'0.75rem', color:'rgba(255,255,255,0.45)', marginTop:2 }}>
+                {family.guardianRelationship ?? 'Guardian'} · {family.children.length} child{family.children.length !== 1 ? 'ren' : ''} registered
+              </div>
+              <div style={{ display:'flex', gap:'0.4rem', marginTop:'0.45rem', flexWrap:'wrap' }}>
+                <span style={{ display:'inline-block', fontSize:'0.65rem', fontWeight:700, padding:'0.15rem 0.5rem', borderRadius:20, color: family.registeredBy === 'teacher' ? '#c8a84b' : '#6db33f', background: family.registeredBy === 'teacher' ? 'rgba(200,168,75,0.1)' : 'rgba(109,179,63,0.1)', border:`1px solid ${family.registeredBy === 'teacher' ? 'rgba(200,168,75,0.2)' : 'rgba(109,179,63,0.2)'}` }}>
+                  {family.registeredBy === 'teacher' ? 'Teacher-registered' : 'Parent-registered'}
+                </span>
+                {family.employmentStatus && (
+                  <span style={{ display:'inline-block', fontSize:'0.65rem', fontWeight:700, padding:'0.15rem 0.5rem', borderRadius:20, color:'#8bc4e8', background:'rgba(139,196,232,0.1)', border:'1px solid rgba(139,196,232,0.2)' }}>
+                    💼 {family.employmentStatus}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
+
         <div style={{ padding:'1.25rem', display:'flex', flexDirection:'column', gap:'1rem' }}>
+
+          {/* Guardian / Parent Details */}
           <div style={{ background:'rgba(255,255,255,0.025)', border:'1px solid rgba(255,255,255,0.065)', borderRadius:12, padding:'1rem' }}>
-            <div style={{ fontSize:'0.68rem', fontWeight:700, color:'rgba(255,255,255,0.35)', textTransform:'uppercase', letterSpacing:'0.8px', marginBottom:'0.7rem' }}>Contact Details</div>
-            <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem' }}>
-              {[{l:'📞 Phone', v:family.parentPhone},{l:'✉️ Email', v:family.parentEmail},{l:'🏠 Address', v:family.address??'Not provided'}].map(({ l, v }) => (
-                <div key={l} style={{ display:'flex', gap:'0.75rem' }}>
-                  <span style={{ fontSize:'0.78rem', color:'rgba(255,255,255,0.35)', minWidth:80 }}>{l}</span>
-                  <span style={{ fontSize:'0.78rem', color:'#fff', fontWeight:500 }}>{v}</span>
+            <div style={{ fontSize:'0.68rem', fontWeight:700, color:'rgba(255,255,255,0.35)', textTransform:'uppercase', letterSpacing:'0.8px', marginBottom:'0.75rem' }}>👤 Guardian Details</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.65rem' }}>
+              {[
+                { l:'Full Name',        v: family.parentName },
+                { l:'Relationship',     v: family.guardianRelationship ?? '—' },
+                { l:'📞 Phone',         v: family.parentPhone },
+                { l:'✉️ Email',         v: family.parentEmail },
+                { l:'🏠 Address',       v: family.address ?? 'Not provided' },
+                { l:'🆘 Emergency',     v: family.emergencyContact ?? 'Not provided' },
+                { l:'💼 Employment',    v: family.employmentStatus ?? 'Not provided' },
+                { l:'🪪 SA ID',         v: family.parentIdNumber ?? 'Not provided' },
+              ].map(({ l, v }) => (
+                <div key={l} style={{ display:'flex', flexDirection:'column', gap:3 }}>
+                  <div style={{ fontSize:'0.65rem', color:'rgba(255,255,255,0.3)', textTransform:'uppercase', letterSpacing:'0.4px' }}>{l}</div>
+                  <div style={{ fontSize:'0.82rem', color:'#fff', fontWeight:500, fontFamily: l === '🪪 SA ID' || l === '📞 Phone' ? 'monospace' : "'DM Sans',sans-serif", letterSpacing: l === '🪪 SA ID' ? '1px' : 'normal', wordBreak:'break-all' }}>{v}</div>
                 </div>
               ))}
             </div>
           </div>
+
+          {/* Children */}
           <div>
-            <div style={{ fontSize:'0.68rem', fontWeight:700, color:'rgba(255,255,255,0.35)', textTransform:'uppercase', letterSpacing:'0.8px', marginBottom:'0.7rem' }}>Children</div>
+            <div style={{ fontSize:'0.68rem', fontWeight:700, color:'rgba(255,255,255,0.35)', textTransform:'uppercase', letterSpacing:'0.8px', marginBottom:'0.7rem' }}>👶 Children</div>
             <div style={{ display:'flex', flexDirection:'column', gap:'0.6rem' }}>
               {family.children.map((c, i) => (
-                <div key={c.id} style={{ display:'flex', alignItems:'center', gap:'0.75rem', padding:'0.75rem 0.9rem', borderRadius:10, background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.06)' }}>
-                  <div style={{ width:36, height:36, borderRadius:'50%', background:avatarColor(c.id, i), display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.75rem', fontWeight:700, color:'#fff', flexShrink:0 }}>{initials(c.firstName, c.lastName)}</div>
-                  <div style={{ flex:1 }}>
+                <div key={c.id} style={{ display:'flex', alignItems:'center', gap:'0.75rem', padding:'0.8rem 0.9rem', borderRadius:10, background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ width:38, height:38, borderRadius:'50%', background:avatarColor(c.id, i), display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.78rem', fontWeight:700, color:'#fff', flexShrink:0 }}>{initials(c.firstName, c.lastName)}</div>
+                  <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontWeight:600, color:'#fff', fontSize:'0.875rem' }}>{c.firstName} {c.lastName}</div>
-                    <div style={{ fontSize:'0.72rem', color:'rgba(255,255,255,0.38)', marginTop:2 }}>{c.grade} · Age {c.age} · {c.guardianRelationship ?? 'Guardian'}</div>
+                    <div style={{ fontSize:'0.72rem', color:'rgba(255,255,255,0.38)', marginTop:2 }}>{c.grade} · Age {c.age} · {c.gender}</div>
+                    {c.idNumber && <div style={{ fontSize:'0.65rem', color:'rgba(255,255,255,0.25)', fontFamily:'monospace', marginTop:2 }}>ID: {c.idNumber}</div>}
+                    <div style={{ display:'flex', gap:'0.3rem', flexWrap:'wrap', marginTop:4 }}>
+                      {c.hasAllergies && <span style={{ fontSize:'0.6rem', fontWeight:700, color:'#c8a84b', background:'rgba(200,168,75,0.1)', border:'1px solid rgba(200,168,75,0.2)', padding:'0.1rem 0.4rem', borderRadius:20 }}>⚠ Allergy</span>}
+                      {c.hasMedicalCondition && <span style={{ fontSize:'0.6rem', fontWeight:700, color:'#e05252', background:'rgba(224,82,82,0.1)', border:'1px solid rgba(224,82,82,0.2)', padding:'0.1rem 0.4rem', borderRadius:20 }}>⚕ Medical</span>}
+                      {c.welfareFlags > 0 && <span style={{ fontSize:'0.6rem', fontWeight:700, color:'#e05252', background:'rgba(224,82,82,0.1)', border:'1px solid rgba(224,82,82,0.2)', padding:'0.1rem 0.4rem', borderRadius:20 }}>🚩 Welfare</span>}
+                    </div>
                   </div>
-                  <div style={{ textAlign:'right' }}>
-                    <div style={{ fontSize:'0.85rem', fontWeight:700, color: c.attendanceRate >= 80 ? '#34d399' : c.attendanceRate >= 60 ? '#fbbf24' : '#f87171' }}>{c.attendanceRate}%</div>
+                  <div style={{ textAlign:'right', flexShrink:0 }}>
+                    <div style={{ fontSize:'1rem', fontWeight:800, color: c.attendanceRate >= 80 ? '#6db33f' : c.attendanceRate >= 60 ? '#c8a84b' : '#e05252', fontFamily:"'Bebas Neue',sans-serif" }}>{c.attendanceRate}%</div>
                     <div style={{ fontSize:'0.6rem', color:'rgba(255,255,255,0.3)' }}>attendance</div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
+
         </div>
       </div>
     </div>
@@ -377,14 +411,16 @@ function FamilyProfileCard({ family, children, idx, onClose }: {
 type Tab = 'overview' | 'attendance' | 'welfare' | 'register' | 'families' | 'report';
 
 export default function TeacherDashboard({
-  user = { name:'Thabo Mokoena', email:'teacher@demo.church', phone:'+27 73 444 5566', role:'teacher' },
+  user = { name:'Thabo Mokoena', email:'teacher@demo.church', phone:'+27734445566', role:'teacher' },
   onLogout,
+  onRegisterFamily,
 }: TeacherDashboardProps) {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [children, setChildren] = useState<Child[]>(INITIAL_CHILDREN);
   const [attendanceHistory, setAttendanceHistory] = useState<DailyAttendanceRecord[]>(MOCK_HISTORICAL);
   const [selectedDate, setSelectedDate] = useState<string>(todayISO());
-  const [attendanceFilter, setAttendanceFilter] = useState<'all'|'present'|'absent'|'late'|'unmarked'>('all');
+  // Updated: fed filter added
+  const [attendanceFilter, setAttendanceFilter] = useState<'all'|'present'|'absent'|'late'|'unmarked'|'fed'|'notfed'>('all');
   const [attendanceSaved, setAttendanceSaved] = useState(false);
   const [welfare, setWelfare] = useState<WelfareFlag[]>(INITIAL_WELFARE);
   const [welfareForm, setWelfareForm] = useState({ childId:'', concern:'', severity:'medium' as 'low'|'medium'|'high' });
@@ -392,7 +428,8 @@ export default function TeacherDashboard({
   const [welfareSaved, setWelfareSaved] = useState(false);
   const [reportStartDate, setReportStartDate] = useState('2026-02-01');
   const [reportEndDate, setReportEndDate] = useState(todayISO());
-  const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
+  // Register tab uses override popup; attendance tab uses inline editing only
+  const [registerOverrideChildId, setRegisterOverrideChildId] = useState<string | null>(null);
   const [selectedFamilyName, setSelectedFamilyName] = useState<string | null>(null);
 
   const getCurrentRecord = (date: string): DailyAttendanceRecord => {
@@ -409,6 +446,7 @@ export default function TeacherDashboard({
   const isDateSaved = currentRecord.saved;
 
   const updateEntry = (childId: string, update: Partial<AttendanceEntry>) => {
+    if (isDateSaved) return; // locked — use override popup
     setAttendanceHistory(prev => {
       const idx = prev.findIndex(r => r.date === selectedDate);
       const newEntries = currentEntries.map(e => e.childId === childId ? { ...e, ...update } : e);
@@ -419,12 +457,19 @@ export default function TeacherDashboard({
     setAttendanceSaved(false);
   };
 
-  const setStatus = (childId: string, status: 'present'|'absent'|'late') => updateEntry(childId, { status });
+  const setStatus = (childId: string, status: 'present'|'absent'|'late'|'') => {
+    if (status === '') {
+      updateEntry(childId, { status: null });
+    } else {
+      updateEntry(childId, { status });
+    }
+  };
   const toggleFed = (childId: string) => { const e = currentEntries.find(e => e.childId === childId); updateEntry(childId, { fed: !e?.fed }); };
   const presentCount = currentEntries.filter(a => a.status === 'present').length;
   const absentCount  = currentEntries.filter(a => a.status === 'absent').length;
   const lateCount    = currentEntries.filter(a => a.status === 'late').length;
   const fedCount     = currentEntries.filter(a => a.fed).length;
+  const notFedCount  = currentEntries.filter(a => !a.fed).length;
   const unmarked     = currentEntries.filter(a => a.status === null).length;
 
   const filteredChildren = useMemo(() => {
@@ -432,6 +477,8 @@ export default function TeacherDashboard({
     return children.filter(c => {
       const entry = currentEntries.find(e => e.childId === c.id);
       if (attendanceFilter === 'unmarked') return !entry?.status;
+      if (attendanceFilter === 'fed') return entry?.fed === true;
+      if (attendanceFilter === 'notfed') return entry?.fed === false;
       return entry?.status === attendanceFilter;
     });
   }, [children, currentEntries, attendanceFilter]);
@@ -448,7 +495,7 @@ export default function TeacherDashboard({
     setTimeout(() => setAttendanceSaved(false), 3000);
   };
 
-  // Override attendance (works on locked records too)
+  // Override attendance (works on locked records — used from Register tab popup)
   const handleAttendanceOverride = (childId: string, date: string, status: 'present'|'absent'|'late') => {
     setAttendanceHistory(prev => {
       const idx = prev.findIndex(r => r.date === date);
@@ -465,10 +512,8 @@ export default function TeacherDashboard({
         updated[idx] = { ...rec, entries: newEntries, saved: true };
         return updated;
       }
-      // Date not recorded yet — create it
       return [...prev, { date, saved:true, entries:[{ childId, status, fed:false, overrideDate:todayISO() }] }];
     });
-    // Update child attendance rate approximation
     setChildren(prev => prev.map(c => {
       if (c.id !== childId) return c;
       return { ...c, attendanceRate: Math.min(100, c.attendanceRate + (status === 'present' || status === 'late' ? 2 : -2)) };
@@ -489,6 +534,7 @@ export default function TeacherDashboard({
   };
   const resolveFlag = (id: string) => setWelfare(prev => prev.map(w => w.id === id ? { ...w, resolved:true } : w));
 
+  // Report data — synced to selectedDate attendance state
   const reportData = useMemo(() => {
     const sundays = getSundaysInRange(reportStartDate, reportEndDate);
     const savedSundays = sundays.filter(s => attendanceHistory.find(r => r.date === s && r.saved));
@@ -521,31 +567,38 @@ export default function TeacherDashboard({
   const openWelfare = welfare.filter(w => !w.resolved).length;
   const avgAttendance = children.length ? Math.round(children.reduce((s, c) => s + c.attendanceRate, 0) / children.length) : 0;
 
-  // Family grouping
   const families = useMemo(() => {
-    const map = new Map<string, { parentName:string; parentPhone:string; parentEmail:string; registeredBy:'parent'|'teacher'; address?:string; children:Child[] }>();
+    const map = new Map<string, { parentName:string; parentPhone:string; parentEmail:string; registeredBy:'parent'|'teacher'; address?:string; emergencyContact?:string; parentIdNumber?:string; employmentStatus?:string; guardianRelationship?:string; children:Child[] }>();
     children.forEach(c => {
       const key = c.parentName;
-      if (!map.has(key)) map.set(key, { parentName:c.parentName, parentPhone:c.parentPhone, parentEmail:c.parentEmail, registeredBy:c.registeredBy, address:c.address, children:[] });
+      if (!map.has(key)) map.set(key, { parentName:c.parentName, parentPhone:c.parentPhone, parentEmail:c.parentEmail, registeredBy:c.registeredBy, address:c.address, emergencyContact:c.emergencyContact, parentIdNumber:c.parentIdNumber, employmentStatus:c.employmentStatus, guardianRelationship:c.guardianRelationship, children:[] });
       map.get(key)!.children.push(c);
     });
     return Array.from(map.values());
   }, [children]);
 
-  const selectedChild = selectedChildId ? children.find(c => c.id === selectedChildId) ?? null : null;
-  const selectedChildIdx = selectedChildId ? children.findIndex(c => c.id === selectedChildId) : 0;
+  const registerOverrideChild = registerOverrideChildId ? children.find(c => c.id === registerOverrideChildId) ?? null : null;
+  const registerOverrideChildIdx = registerOverrideChildId ? children.findIndex(c => c.id === registerOverrideChildId) : 0;
   const selectedFamily = selectedFamilyName ? families.find(f => f.parentName === selectedFamilyName) ?? null : null;
+
+  // Live attendance stats from current entries (for report to stay in sync)
+  const livePresent = currentEntries.filter(e => e.status === 'present').length;
+  const liveAbsent  = currentEntries.filter(e => e.status === 'absent').length;
+  const lateLive    = currentEntries.filter(e => e.status === 'late').length;
+  const liveFed     = currentEntries.filter(e => e.fed).length;
 
   return (
     <>
       <style>{CSS}</style>
-      {selectedChild && (
-        <ChildProfilePopup
-          child={selectedChild}
-          idx={selectedChildIdx}
+
+      {/* Register tab override popup */}
+      {registerOverrideChild && (
+        <RegisterOverridePopup
+          child={registerOverrideChild}
+          idx={registerOverrideChildIdx}
           attendanceHistory={attendanceHistory}
           savedSundays={reportData.savedSundays}
-          onClose={() => setSelectedChildId(null)}
+          onClose={() => setRegisterOverrideChildId(null)}
           onOverride={handleAttendanceOverride}
         />
       )}
@@ -603,11 +656,11 @@ export default function TeacherDashboard({
                 <div className="td-hero">
                   <div className="td-hero-glow" />
                   <div className="td-hero-pill"><span className="td-hero-dot" />Teacher</div>
-                  <h1 className="td-hero-h1">Good morning, <span className="td-blue">{user.name.split(' ')[0]}</span></h1>
+                  <h1 className="td-hero-h1">Good morning, <span className="td-accent">{user.name.split(' ')[0]}</span></h1>
                   <p className="td-hero-p">
                     You have <strong style={{ color:'#fff' }}>{children.length} children</strong> in Grade 3.
-                    {openWelfare > 0 && <> <strong style={{ color:'#f87171' }}>{openWelfare} welfare concern{openWelfare > 1 ? 's' : ''}</strong> need attention.</>}
-                    {unmarked > 0 && <> <strong style={{ color:'#fbbf24' }}>Today's attendance</strong> has not been marked yet.</>}
+                    {openWelfare > 0 && <> <strong style={{ color:'#e05252' }}>{openWelfare} welfare concern{openWelfare > 1 ? 's' : ''}</strong> need attention.</>}
+                    {unmarked > 0 && <> <strong style={{ color:'#c8a84b' }}>Today's attendance</strong> has not been marked yet.</>}
                   </p>
                   <div className="td-hero-chips">
                     {[{l:'Class',v:'Grade 3'},{l:'Pupils',v:`${children.length} registered`},{l:'Avg Att',v:`${avgAttendance}%`},{l:'Today',v:todayStr()}].map(({ l, v }) => (
@@ -617,10 +670,10 @@ export default function TeacherDashboard({
                 </div>
                 <div className="td-stats-grid">
                   {[
-                    { icon:'👶', label:'Class Size',      value:children.length,                                                          color:'#60a5fa' },
-                    { icon:'📅', label:'Avg Attendance',  value:`${avgAttendance}%`,                                                      color:'#34d399' },
-                    { icon:'🚨', label:'Open Welfare',    value:openWelfare,   color:openWelfare > 0 ? '#f87171' : '#34d399' },
-                    { icon:'⚠',  label:'Medical/Allergy', value:children.filter(c => c.hasAllergies || c.hasMedicalCondition).length,     color:'#fbbf24' },
+                    { icon:'👶', label:'Class Size',      value:children.length,                                                          color:'#c8a84b' },
+                    { icon:'📅', label:'Avg Attendance',  value:`${avgAttendance}%`,                                                      color:'#6db33f' },
+                    { icon:'🚨', label:'Open Welfare',    value:openWelfare,   color:openWelfare > 0 ? '#e05252' : '#6db33f' },
+                    { icon:'⚠',  label:'Medical/Allergy', value:children.filter(c => c.hasAllergies || c.hasMedicalCondition).length,     color:'#c8a84b' },
                   ].map(s => (
                     <div key={s.label} className="td-stat-card">
                       <div className="td-stat-icon">{s.icon}</div>
@@ -649,15 +702,15 @@ export default function TeacherDashboard({
                 </div>
                 {children.some(c => c.hasAllergies || c.hasMedicalCondition) && (
                   <div className="td-card">
-                    <div className="td-card-title" style={{ color:'#fbbf24' }}>⚠ Medical & Allergy Alerts</div>
+                    <div className="td-card-title" style={{ color:'#c8a84b' }}>⚠ Medical & Allergy Alerts</div>
                     <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem', marginTop:'0.75rem' }}>
                       {children.filter(c => c.hasAllergies || c.hasMedicalCondition).map((c, idx) => (
-                        <div key={c.id} className="td-alert-row" style={{ cursor:'pointer' }} onClick={() => setSelectedChildId(c.id)}>
+                        <div key={c.id} className="td-alert-row">
                           <div className="td-avatar-xs" style={{ background:avatarColor(c.id,idx) }}>{initials(c.firstName,c.lastName)}</div>
                           <div>
                             <div style={{ fontWeight:600, color:'#fff', fontSize:'0.88rem' }}>{c.firstName} {c.lastName}</div>
-                            {c.hasAllergies        && <div style={{ fontSize:'0.76rem', color:'#fbbf24' }}>⚠ Allergy: {c.allergiesDetails}</div>}
-                            {c.hasMedicalCondition && <div style={{ fontSize:'0.76rem', color:'#f87171' }}>⚕ Medical: {c.medicalDetails}</div>}
+                            {c.hasAllergies        && <div style={{ fontSize:'0.76rem', color:'#c8a84b' }}>⚠ Allergy: {c.allergiesDetails}</div>}
+                            {c.hasMedicalCondition && <div style={{ fontSize:'0.76rem', color:'#e05252' }}>⚕ Medical: {c.medicalDetails}</div>}
                           </div>
                         </div>
                       ))}
@@ -673,7 +726,7 @@ export default function TeacherDashboard({
                 <div className="td-page-header">
                   <div>
                     <div className="td-page-title">Attendance & Feeding</div>
-                    <div className="td-page-sub">Grade 3 · Click a learner row to open their profile</div>
+                    <div className="td-page-sub">Grade 3 · Use dropdowns to mark status and feeding</div>
                   </div>
                   <button className="td-btn-primary" onClick={saveAttendance} disabled={unmarked > 0 || isDateSaved}>
                     {isDateSaved ? '✓ Register Saved' : attendanceSaved ? '✓ Saved!' : unmarked > 0 ? `Save (${unmarked} remaining)` : 'Save Register'}
@@ -689,8 +742,8 @@ export default function TeacherDashboard({
                     <div style={{ flexShrink:0, paddingBottom:'0.05rem' }}>
                       <div style={{ fontSize:'0.8rem', color:'rgba(255,255,255,0.4)', marginBottom:'0.4rem' }}>{fmtDateLong(selectedDate)}</div>
                       {isDateSaved
-                        ? <span style={{ fontSize:'0.72rem', fontWeight:700, color:'#34d399', background:'rgba(52,211,153,0.1)', border:'1px solid rgba(52,211,153,0.25)', padding:'0.2rem 0.65rem', borderRadius:20 }}>✓ Saved · Click learner to override</span>
-                        : <span style={{ fontSize:'0.72rem', fontWeight:700, color:'#fbbf24', background:'rgba(251,191,36,0.1)', border:'1px solid rgba(251,191,36,0.2)', padding:'0.2rem 0.65rem', borderRadius:20 }}>⏳ Not yet saved</span>}
+                        ? <span style={{ fontSize:'0.72rem', fontWeight:700, color:'#6db33f', background:'rgba(109,179,63,0.1)', border:'1px solid rgba(109,179,63,0.25)', padding:'0.2rem 0.65rem', borderRadius:20 }}>✓ Saved · Go to Class Register to override</span>
+                        : <span style={{ fontSize:'0.72rem', fontWeight:700, color:'#c8a84b', background:'rgba(200,168,75,0.1)', border:'1px solid rgba(200,168,75,0.2)', padding:'0.2rem 0.65rem', borderRadius:20 }}>⏳ Not yet saved</span>}
                     </div>
                     <div style={{ display:'flex', gap:'0.4rem', flexWrap:'wrap', paddingBottom:'0.05rem' }}>
                       {[0,7,14,21].map(daysAgo => {
@@ -699,7 +752,7 @@ export default function TeacherDashboard({
                         const iso = d.toISOString().split('T')[0];
                         const label = daysAgo === 0 ? 'This Sunday' : `${daysAgo/7}w ago`;
                         return (
-                          <button key={iso} onClick={() => { setSelectedDate(iso); setAttendanceFilter('all'); }} style={{ padding:'0.3rem 0.7rem', borderRadius:7, fontSize:'0.72rem', fontWeight:600, cursor:'pointer', fontFamily:"'DM Sans',sans-serif", border:selectedDate===iso?'1px solid #60a5fa':'1px solid rgba(255,255,255,0.1)', background:selectedDate===iso?'rgba(96,165,250,0.15)':'transparent', color:selectedDate===iso?'#60a5fa':'rgba(255,255,255,0.4)', transition:'all 0.15s' }}>{label}</button>
+                          <button key={iso} onClick={() => { setSelectedDate(iso); setAttendanceFilter('all'); }} style={{ padding:'0.3rem 0.7rem', borderRadius:7, fontSize:'0.72rem', fontWeight:600, cursor:'pointer', fontFamily:"'DM Sans',sans-serif", border:selectedDate===iso?'1px solid #c8a84b':'1px solid rgba(255,255,255,0.1)', background:selectedDate===iso?'rgba(200,168,75,0.15)':'transparent', color:selectedDate===iso?'#c8a84b':'rgba(255,255,255,0.4)', transition:'all 0.15s' }}>{label}</button>
                         );
                       })}
                     </div>
@@ -707,7 +760,13 @@ export default function TeacherDashboard({
                 </div>
 
                 <div className="td-att-summary">
-                  {[{label:'Present',count:presentCount,color:'#34d399'},{label:'Absent',count:absentCount,color:'#f87171'},{label:'Late',count:lateCount,color:'#fbbf24'},{label:'🍽 Fed',count:fedCount,color:'#60a5fa'},{label:'Unmarked',count:unmarked,color:'rgba(255,255,255,0.3)'}].map(s => (
+                  {[
+                    {label:'Present', count:presentCount, color:'#6db33f'},
+                    {label:'Absent',  count:absentCount,  color:'#e05252'},
+                    {label:'Late',    count:lateCount,    color:'#c8a84b'},
+                    {label:'🍽 Fed',  count:fedCount,     color:'#8bc4e8'},
+                    {label:'Unmarked',count:unmarked,     color:'rgba(255,255,255,0.3)'}
+                  ].map(s => (
                     <div key={s.label} className="td-att-sum-item">
                       <div style={{ fontSize:'1.4rem', fontWeight:800, color:s.color, fontFamily:"'Bebas Neue',sans-serif" }}>{s.count}</div>
                       <div style={{ fontSize:'0.68rem', color:'rgba(255,255,255,0.4)', textTransform:'uppercase', letterSpacing:'0.5px' }}>{s.label}</div>
@@ -715,56 +774,114 @@ export default function TeacherDashboard({
                   ))}
                 </div>
 
+                {/* Filters — including fed/not fed */}
                 <div style={{ display:'flex', gap:'0.4rem', marginBottom:'0.85rem', flexWrap:'wrap', alignItems:'center' }}>
                   <span style={{ fontSize:'0.75rem', color:'rgba(255,255,255,0.35)', marginRight:'0.25rem' }}>Filter:</span>
-                  {(['all','present','absent','late','unmarked'] as const).map(f => {
-                    const colors: Record<string,string> = { all:'#60a5fa', present:'#34d399', absent:'#f87171', late:'#fbbf24', unmarked:'rgba(255,255,255,0.4)' };
-                    const count = f==='all'?children.length:f==='unmarked'?unmarked:currentEntries.filter(e=>e.status===f).length;
-                    return (
-                      <button key={f} onClick={() => setAttendanceFilter(f)} style={{ padding:'0.28rem 0.75rem', borderRadius:20, fontSize:'0.72rem', fontWeight:700, cursor:'pointer', fontFamily:"'DM Sans',sans-serif", textTransform:'capitalize', border:`1px solid ${attendanceFilter===f?colors[f]:'rgba(255,255,255,0.1)'}`, background:attendanceFilter===f?`${colors[f]}18`:'transparent', color:attendanceFilter===f?colors[f]:'rgba(255,255,255,0.35)', transition:'all 0.15s' }}>
-                        {f} ({count})
-                      </button>
-                    );
-                  })}
+                  {([
+                    { f:'all',      label:'All',     color:'#c8a84b', count:children.length },
+                    { f:'present',  label:'Present', color:'#6db33f', count:currentEntries.filter(e=>e.status==='present').length },
+                    { f:'absent',   label:'Absent',  color:'#e05252', count:currentEntries.filter(e=>e.status==='absent').length },
+                    { f:'late',     label:'Late',    color:'#c8a84b', count:currentEntries.filter(e=>e.status==='late').length },
+                    { f:'unmarked', label:'Unmarked',color:'rgba(255,255,255,0.4)', count:unmarked },
+                    { f:'fed',      label:'🍽 Fed',  color:'#8bc4e8', count:fedCount },
+                    { f:'notfed',   label:'Not Fed', color:'rgba(255,255,255,0.4)', count:notFedCount },
+                  ] as const).map(({ f, label, color, count }) => (
+                    <button key={f} onClick={() => setAttendanceFilter(f)} style={{ padding:'0.28rem 0.75rem', borderRadius:20, fontSize:'0.72rem', fontWeight:700, cursor:'pointer', fontFamily:"'DM Sans',sans-serif", border:`1px solid ${attendanceFilter===f?color:'rgba(255,255,255,0.1)'}`, background:attendanceFilter===f?`${color}18`:'transparent', color:attendanceFilter===f?color:'rgba(255,255,255,0.35)', transition:'all 0.15s' }}>
+                      {label} ({count})
+                    </button>
+                  ))}
                 </div>
 
                 {isDateSaved && (
-                  <div style={{ padding:'0.7rem 1rem', borderRadius:9, background:'rgba(52,211,153,0.07)', border:'1px solid rgba(52,211,153,0.2)', fontSize:'0.8rem', color:'#34d399', marginBottom:'0.85rem', display:'flex', gap:'0.5rem', alignItems:'center' }}>
-                    <span>🔒</span><span>Register saved. Click any learner row to open their profile and override attendance if needed.</span>
+                  <div style={{ padding:'0.7rem 1rem', borderRadius:9, background:'rgba(109,179,63,0.07)', border:'1px solid rgba(109,179,63,0.2)', fontSize:'0.8rem', color:'#6db33f', marginBottom:'0.85rem', display:'flex', gap:'0.5rem', alignItems:'center' }}>
+                    <span>🔒</span><span>Register saved. Go to the <strong>Class Register</strong> tab to override any entry.</span>
                   </div>
                 )}
 
+                {/* Attendance table with inline dropdowns — NO floating popup */}
                 <div className="td-card" style={{ padding:0, overflow:'hidden' }}>
                   <table className="td-att-table">
-                    <thead><tr><th>Child</th><th>Age</th><th>Medical</th><th>Attendance Status</th><th>🍽 Fed Today</th></tr></thead>
+                    <thead>
+                      <tr>
+                        <th>Child</th>
+                        <th>Age</th>
+                        <th>Medical</th>
+                        <th>Attendance Status</th>
+                        <th>🍽 Fed Today</th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {filteredChildren.length === 0
                         ? <tr><td colSpan={5} style={{ textAlign:'center', color:'rgba(255,255,255,0.3)', padding:'2rem', fontSize:'0.85rem' }}>No children match this filter.</td></tr>
                         : filteredChildren.map((child, idx) => {
                             const entry = currentEntries.find(a => a.childId === child.id) ?? { childId:child.id, status:null, fed:false };
+                            const statusColor = entry.status==='present'?'#6db33f':entry.status==='absent'?'#e05252':entry.status==='late'?'#c8a84b':'rgba(255,255,255,0.3)';
                             return (
-                              <tr key={child.id} className={`td-att-tr${entry.status?` td-att-tr--${entry.status}`:''} td-clickable-row`} onClick={() => setSelectedChildId(child.id)}>
+                              <tr key={child.id} className={`td-att-tr${entry.status?` td-att-tr--${entry.status}`:''}`}>
                                 <td>
                                   <div style={{ display:'flex', alignItems:'center', gap:'0.65rem' }}>
                                     <div className="td-avatar-xs" style={{ background:avatarColor(child.id,idx) }}>{initials(child.firstName,child.lastName)}</div>
                                     <div>
                                       <div style={{ fontWeight:600, color:'#fff', fontSize:'0.875rem' }}>{child.firstName} {child.lastName}</div>
-                                      {entry.overrideDate && <div style={{ fontSize:'0.63rem', color:'#60a5fa' }}>↑ Overridden {fmtDate(entry.overrideDate)}</div>}
-                                      {(child.hasAllergies||child.hasMedicalCondition) && <div style={{ fontSize:'0.68rem', color:'#fbbf24' }}>{child.hasAllergies&&'⚠ Allergy '}{child.hasMedicalCondition&&'⚕ Medical'}</div>}
+                                      {entry.overrideDate && <div style={{ fontSize:'0.63rem', color:'#c8a84b' }}>↑ Overridden {fmtDate(entry.overrideDate)}</div>}
+                                      {(child.hasAllergies||child.hasMedicalCondition) && <div style={{ fontSize:'0.68rem', color:'#c8a84b' }}>{child.hasAllergies&&'⚠ Allergy '}{child.hasMedicalCondition&&'⚕ Medical'}</div>}
                                     </div>
                                   </div>
                                 </td>
                                 <td style={{ color:'rgba(255,255,255,0.5)', fontSize:'0.85rem' }}>{child.age}</td>
                                 <td style={{ fontSize:'0.8rem' }}>{child.hasMedicalCondition?<span className="td-tag-warn">⚕ Yes</span>:<span style={{ color:'rgba(255,255,255,0.25)' }}>None</span>}</td>
-                                <td onClick={e => e.stopPropagation()}>
-                                  {isDateSaved
-                                    ? <span className="td-status-pill" style={{ background:entry.status==='present'?'rgba(52,211,153,0.15)':entry.status==='absent'?'rgba(248,113,113,0.15)':entry.status==='late'?'rgba(251,191,36,0.15)':'rgba(255,255,255,0.06)', color:entry.status==='present'?'#34d399':entry.status==='absent'?'#f87171':entry.status==='late'?'#fbbf24':'rgba(255,255,255,0.3)', border:`1px solid ${entry.status==='present'?'#34d39940':entry.status==='absent'?'#f8717140':entry.status==='late'?'#fbbf2440':'rgba(255,255,255,0.1)'}`, padding:'0.3rem 0.75rem', borderRadius:20, fontWeight:700, textTransform:'capitalize' }}>{entry.status??'—'}</span>
-                                    : <div className="td-status-btns">{(['present','absent','late'] as const).map(s => <button key={s} className={`td-status-btn td-status-btn--${s}${entry.status===s?' active':''}`} onClick={() => setStatus(child.id,s)}>{s==='present'?'✓':s==='absent'?'✗':'~'} {s}</button>)}</div>}
+
+                                {/* Attendance — dropdown when unsaved, pill when saved */}
+                                <td>
+                                  {isDateSaved ? (
+                                    <span className="td-status-pill" style={{ background:`${statusColor}20`, color:statusColor, border:`1px solid ${statusColor}40`, padding:'0.3rem 0.75rem', borderRadius:20, fontWeight:700, textTransform:'capitalize', fontSize:'0.78rem' }}>
+                                      {entry.status ?? '—'}
+                                    </span>
+                                  ) : (
+                                    <select
+                                      value={entry.status ?? ''}
+                                      onChange={e => setStatus(child.id, e.target.value as any)}
+                                      style={{
+                                        padding:'0.35rem 0.65rem', borderRadius:7, fontSize:'0.78rem', fontWeight:600,
+                                        fontFamily:"'DM Sans',sans-serif", cursor:'pointer', outline:'none',
+                                        colorScheme:'dark' as any,
+                                        border: entry.status === 'present' ? '1px solid #6db33f'
+                                              : entry.status === 'absent'  ? '1px solid #e05252'
+                                              : entry.status === 'late'    ? '1px solid #c8a84b'
+                                              : '1px solid rgba(255,255,255,0.15)',
+                                        background: entry.status === 'present' ? 'rgba(109,179,63,0.15)'
+                                                  : entry.status === 'absent'  ? 'rgba(224,82,82,0.15)'
+                                                  : entry.status === 'late'    ? 'rgba(200,168,75,0.15)'
+                                                  : 'rgba(255,255,255,0.06)',
+                                        color: entry.status === 'present' ? '#6db33f'
+                                             : entry.status === 'absent'  ? '#e05252'
+                                             : entry.status === 'late'    ? '#c8a84b'
+                                             : 'rgba(255,255,255,0.45)',
+                                        minWidth: 120,
+                                      }}
+                                    >
+                                      <option value="">— Select —</option>
+                                      <option value="present">✓ Present</option>
+                                      <option value="absent">✗ Absent</option>
+                                      <option value="late">~ Late</option>
+                                    </select>
+                                  )}
                                 </td>
-                                <td onClick={e => e.stopPropagation()}>
-                                  {isDateSaved
-                                    ? <span style={{ fontSize:'0.78rem', fontWeight:600, color:entry.fed?'#60a5fa':'rgba(255,255,255,0.25)' }}>{entry.fed?'🍽 Fed':'— Not fed'}</span>
-                                    : <button className={`td-fed-btn${entry.fed?' td-fed-btn--active':''}`} onClick={() => toggleFed(child.id)}>{entry.fed?'🍽 Fed':'— Not fed'}</button>}
+
+                                {/* Fed — toggle button when unsaved, pill when saved */}
+                                <td>
+                                  {isDateSaved ? (
+                                    <span style={{ fontSize:'0.78rem', fontWeight:600, color:entry.fed?'#8bc4e8':'rgba(255,255,255,0.25)' }}>
+                                      {entry.fed?'🍽 Fed':'— Not fed'}
+                                    </span>
+                                  ) : (
+                                    <button
+                                      className={`td-fed-btn${entry.fed?' td-fed-btn--active':''}`}
+                                      onClick={() => toggleFed(child.id)}
+                                    >
+                                      {entry.fed?'🍽 Fed':'— Not fed'}
+                                    </button>
+                                  )}
                                 </td>
                               </tr>
                             );
@@ -774,9 +891,13 @@ export default function TeacherDashboard({
                 </div>
 
                 <div className="td-card">
-                  <div className="td-card-title" style={{ color:'#60a5fa', marginBottom:'0.85rem' }}>🍽 Feeding Summary</div>
+                  <div className="td-card-title" style={{ color:'#8bc4e8', marginBottom:'0.85rem' }}>🍽 Feeding Summary</div>
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'0.75rem' }}>
-                    {[{label:'Fed Today',value:fedCount,color:'#60a5fa'},{label:'Not Fed',value:children.length-fedCount,color:'rgba(255,255,255,0.3)'},{label:'Present + Fed',value:currentEntries.filter(a=>a.status==='present'&&a.fed).length,color:'#34d399'}].map(s => (
+                    {[
+                      {label:'Fed Today',    value:fedCount,                                                          color:'#8bc4e8'},
+                      {label:'Not Fed',      value:children.length-fedCount,                                          color:'rgba(255,255,255,0.3)'},
+                      {label:'Present + Fed',value:currentEntries.filter(a=>a.status==='present'&&a.fed).length,      color:'#6db33f'},
+                    ].map(s => (
                       <div key={s.label} style={{ textAlign:'center', padding:'0.85rem', borderRadius:10, background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.06)' }}>
                         <div style={{ fontSize:'1.6rem', fontWeight:800, color:s.color, fontFamily:"'Bebas Neue',sans-serif" }}>{s.value}</div>
                         <div style={{ fontSize:'0.72rem', color:'rgba(255,255,255,0.4)', textTransform:'uppercase', letterSpacing:'0.5px', marginTop:4 }}>{s.label}</div>
@@ -799,7 +920,7 @@ export default function TeacherDashboard({
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem' }}>
                       <div>
                         <label style={WL}>Child *</label>
-                        <select style={{ ...WI, borderColor:welfareErrors.childId?'#f87171':'rgba(255,255,255,0.1)' }} value={welfareForm.childId} onChange={e => setWelfareForm(f => ({ ...f, childId:e.target.value }))}>
+                        <select style={{ ...WI, borderColor:welfareErrors.childId?'#e05252':'rgba(255,255,255,0.1)' }} value={welfareForm.childId} onChange={e => setWelfareForm(f => ({ ...f, childId:e.target.value }))}>
                           <option value="">Select child</option>
                           {children.map(c => <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>)}
                         </select>
@@ -835,7 +956,7 @@ export default function TeacherDashboard({
                             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'0.75rem', marginBottom:6 }}>
                               <div style={{ display:'flex', alignItems:'center', gap:'0.6rem' }}>
                                 <span className={`td-sev-badge td-sev-badge--${w.severity}`}>{w.severity}</span>
-                                <span style={{ fontWeight:700, color:'#fff', fontSize:'0.875rem', cursor:'pointer', textDecoration:'underline', textDecorationColor:'rgba(255,255,255,0.2)' }} onClick={() => setSelectedChildId(w.childId)}>{w.childName}</span>
+                                <span style={{ fontWeight:700, color:'#fff', fontSize:'0.875rem' }}>{w.childName}</span>
                               </div>
                               <div style={{ display:'flex', alignItems:'center', gap:'0.65rem' }}>
                                 <span style={{ fontSize:'0.72rem', color:'rgba(255,255,255,0.3)' }}>{fmtDate(w.date)}</span>
@@ -854,28 +975,49 @@ export default function TeacherDashboard({
             {activeTab === 'register' && (
               <div className="td-fade">
                 <div className="td-page-header">
-                  <div><div className="td-page-title">Class Register</div><div className="td-page-sub">Grade 3 · {children.length} children · Click row to open profile</div></div>
+                  <div>
+                    <div className="td-page-title">Class Register</div>
+                    <div className="td-page-sub">Grade 3 · {children.length} children · Click row to override attendance</div>
+                  </div>
+                </div>
+                <div style={{ padding:'12px 16px', borderRadius:10, background:'rgba(109,179,63,0.07)', border:'1px solid rgba(109,179,63,0.2)', marginBottom:'1rem', display:'flex', gap:'0.6rem', alignItems:'center', fontSize:'0.8rem', color:'rgba(255,255,255,0.5)' }}>
+                  <span>🔓</span><span>Click any learner row to open their profile and override attendance records.</span>
                 </div>
                 <div className="td-card" style={{ padding:0, overflow:'hidden' }}>
                   <table className="td-reg-table">
-                    <thead><tr><th>Name</th><th>Age</th><th>Grade</th><th>Gender</th><th>Today</th><th>Medical</th><th>Welfare</th><th>Parent / Guardian</th></tr></thead>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Age</th>
+                        <th>SA ID</th>
+                        <th>Gender</th>
+                        <th>Today</th>
+                        <th>Medical</th>
+                        <th>Welfare</th>
+                        <th>Parent / Guardian</th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {children.map((child, idx) => {
                         const entry = currentEntries.find(a => a.childId === child.id);
-                        const sc = entry?.status==='present'?'#34d399':entry?.status==='absent'?'#f87171':entry?.status==='late'?'#fbbf24':'rgba(255,255,255,0.2)';
+                        const sc = entry?.status==='present'?'#6db33f':entry?.status==='absent'?'#e05252':entry?.status==='late'?'#c8a84b':'rgba(255,255,255,0.2)';
                         return (
-                          <tr key={child.id} className="td-reg-tr td-clickable-row" onClick={() => setSelectedChildId(child.id)}>
+                          <tr key={child.id} className="td-reg-tr td-clickable-row" onClick={() => setRegisterOverrideChildId(child.id)}>
                             <td>
                               <div style={{ display:'flex', alignItems:'center', gap:'0.6rem' }}>
                                 <div className="td-avatar-xs" style={{ background:avatarColor(child.id,idx) }}>{initials(child.firstName,child.lastName)}</div>
                                 <div>
                                   <span style={{ fontWeight:600, color:'#fff', fontSize:'0.875rem' }}>{child.firstName} {child.lastName}</span>
-                                  {child.registeredBy==='teacher'&&<div style={{ fontSize:'0.65rem', color:'#60a5fa' }}>by teacher</div>}
+                                  {child.registeredBy==='teacher'&&<div style={{ fontSize:'0.65rem', color:'#c8a84b' }}>by teacher</div>}
                                 </div>
                               </div>
                             </td>
                             <td style={{ color:'rgba(255,255,255,0.5)', fontSize:'0.85rem' }}>{child.age}</td>
-                            <td style={{ color:'rgba(255,255,255,0.6)', fontSize:'0.82rem' }}>{child.grade}</td>
+                            <td>
+                              {child.idNumber
+                                ? <span style={{ fontFamily:'monospace', fontSize:'0.75rem', color:'rgba(255,255,255,0.55)', letterSpacing:'0.5px' }}>{child.idNumber}</span>
+                                : <span style={{ fontSize:'0.75rem', color:'rgba(255,255,255,0.2)' }}>—</span>}
+                            </td>
                             <td><span style={{ fontSize:'1rem' }}>{child.gender==='female'?'👩':'👦'}</span><span style={{ fontSize:'0.8rem', color:'rgba(255,255,255,0.5)', marginLeft:4 }}>{child.gender}</span></td>
                             <td><span className="td-status-pill" style={{ background:`${sc}20`, color:sc, border:`1px solid ${sc}40` }}>{entry?.status??'—'}</span></td>
                             <td>{(child.hasAllergies||child.hasMedicalCondition)?<span className="td-tag-warn">{child.hasAllergies?'⚠ Yes':'⚕ Yes'}</span>:<span style={{ color:'rgba(255,255,255,0.25)', fontSize:'0.8rem' }}>None</span>}</td>
@@ -883,7 +1025,7 @@ export default function TeacherDashboard({
                             <td>
                               <div style={{ fontSize:'0.8rem', color:'rgba(255,255,255,0.55)', lineHeight:1.4 }}>
                                 <div>{child.parentName}</div>
-                                <div style={{ color:'rgba(255,255,255,0.35)', fontSize:'0.72rem' }}>{child.parentPhone}</div>
+                                <div style={{ color:'rgba(255,255,255,0.35)', fontSize:'0.72rem', fontFamily:'monospace' }}>{child.parentPhone}</div>
                               </div>
                             </td>
                           </tr>
@@ -900,28 +1042,35 @@ export default function TeacherDashboard({
               <div className="td-fade">
                 <div className="td-page-header">
                   <div><div className="td-page-title">Family Profiles</div><div className="td-page-sub">{families.length} families · {children.length} children total</div></div>
+                  <button
+                    className="td-btn-primary"
+                    onClick={() => onRegisterFamily?.()}
+                    style={{ display:'flex', alignItems:'center', gap:'0.5rem', whiteSpace:'nowrap' }}
+                  >
+                    <span style={{ fontSize:'1rem' }}>👨‍👩‍👧</span> Register New Family
+                  </button>
                 </div>
-                <div style={{ padding:'14px 18px', borderRadius:12, background:'rgba(96,165,250,0.07)', border:'1px solid rgba(96,165,250,0.2)', marginBottom:'1.25rem', display:'flex', gap:'0.85rem', alignItems:'flex-start' }}>
+                <div style={{ padding:'14px 18px', borderRadius:12, background:'rgba(109,179,63,0.07)', border:'1px solid rgba(109,179,63,0.2)', marginBottom:'1.25rem', display:'flex', gap:'0.85rem', alignItems:'flex-start' }}>
                   <span style={{ fontSize:'1.3rem', flexShrink:0 }}>ℹ️</span>
                   <div>
-                    <div style={{ fontWeight:700, color:'#60a5fa', fontSize:'0.875rem', marginBottom:4 }}>Family Profiles</div>
-                    <div style={{ fontSize:'0.82rem', color:'rgba(255,255,255,0.5)', lineHeight:1.6 }}>Click any family card to view their full profile including guardian details, all children, and attendance rates. Teacher-registered families are highlighted in blue.</div>
+                    <div style={{ fontWeight:700, color:'#6db33f', fontSize:'0.875rem', marginBottom:4 }}>Family Profiles</div>
+                    <div style={{ fontSize:'0.82rem', color:'rgba(255,255,255,0.5)', lineHeight:1.6 }}>Click any family card to view their full profile including guardian details, relationship, employment status, and attendance rates. Use <strong style={{ color:'#6db33f' }}>Register New Family</strong> to add a family via the parent registration form.</div>
                   </div>
                 </div>
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))', gap:'1rem' }}>
                   {families.map((family, fIdx) => {
                     const avgAtt = family.children.length ? Math.round(family.children.reduce((s,c) => s+c.attendanceRate,0)/family.children.length) : 0;
-                    const attColor = avgAtt>=80?'#34d399':avgAtt>=60?'#fbbf24':'#f87171';
+                    const attColor = avgAtt>=80?'#6db33f':avgAtt>=60?'#c8a84b':'#e05252';
                     const hasWelfare = family.children.some(c => c.welfareFlags > 0);
                     return (
-                      <div key={family.parentName} onClick={() => setSelectedFamilyName(family.parentName)} style={{ background:'rgba(255,255,255,0.025)', border:`1px solid ${family.registeredBy==='teacher'?'rgba(96,165,250,0.2)':'rgba(255,255,255,0.065)'}`, borderRadius:14, padding:'1.1rem', cursor:'pointer', transition:'all 0.2s', position:'relative', overflow:'hidden' }} className="td-family-card">
-                        {family.registeredBy === 'teacher' && <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:'linear-gradient(90deg,#60a5fa,#2563eb)' }} />}
+                      <div key={family.parentName} onClick={() => setSelectedFamilyName(family.parentName)} style={{ background:'rgba(255,255,255,0.025)', border:`1px solid ${family.registeredBy==='teacher'?'rgba(200,168,75,0.2)':'rgba(255,255,255,0.065)'}`, borderRadius:14, padding:'1.1rem', cursor:'pointer', transition:'all 0.2s', position:'relative', overflow:'hidden' }} className="td-family-card">
+                        {family.registeredBy === 'teacher' && <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:'linear-gradient(90deg,#c8a84b,#a07830)' }} />}
                         <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:'0.75rem', marginBottom:'0.85rem' }}>
                           <div style={{ display:'flex', alignItems:'center', gap:'0.75rem' }}>
-                            <div style={{ width:44, height:44, borderRadius:'50%', background:'linear-gradient(135deg,#1e3a5f,#0d1b2a)', border:'2px solid rgba(96,165,250,0.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.1rem', flexShrink:0 }}>👨‍👩‍👧</div>
+                            <div style={{ width:44, height:44, borderRadius:'50%', background:'linear-gradient(135deg,#1e3a1e,#0d1a0d)', border:'2px solid rgba(109,179,63,0.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.1rem', flexShrink:0 }}>👨‍👩‍👧</div>
                             <div>
                               <div style={{ fontWeight:700, color:'#fff', fontSize:'0.95rem' }}>{family.parentName}</div>
-                              <div style={{ fontSize:'0.72rem', color:'rgba(255,255,255,0.4)', marginTop:2 }}>{family.parentPhone}</div>
+                              <div style={{ fontSize:'0.72rem', color:'rgba(255,255,255,0.4)', marginTop:2, fontFamily:'monospace' }}>{family.parentPhone}</div>
                             </div>
                           </div>
                           <div style={{ textAlign:'right', flexShrink:0 }}>
@@ -934,14 +1083,14 @@ export default function TeacherDashboard({
                             <div key={c.id} style={{ display:'flex', alignItems:'center', gap:'0.6rem', padding:'0.45rem 0.7rem', borderRadius:8, background:'rgba(255,255,255,0.025)', border:'1px solid rgba(255,255,255,0.05)' }}>
                               <div style={{ width:24, height:24, borderRadius:'50%', background:avatarColor(c.id,i), display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.6rem', fontWeight:700, color:'#fff', flexShrink:0 }}>{initials(c.firstName,c.lastName)}</div>
                               <span style={{ fontSize:'0.8rem', color:'#fff', fontWeight:500, flex:1 }}>{c.firstName} {c.lastName}</span>
-                              <span style={{ fontSize:'0.7rem', color:c.attendanceRate>=80?'#34d399':c.attendanceRate>=60?'#fbbf24':'#f87171', fontWeight:700 }}>{c.attendanceRate}%</span>
+                              <span style={{ fontSize:'0.7rem', color:c.attendanceRate>=80?'#6db33f':c.attendanceRate>=60?'#c8a84b':'#e05252', fontWeight:700 }}>{c.attendanceRate}%</span>
                             </div>
                           ))}
                         </div>
                         <div style={{ display:'flex', gap:'0.4rem', flexWrap:'wrap' }}>
-                          {family.registeredBy==='teacher'&&<span style={{ fontSize:'0.62rem', fontWeight:700, color:'#60a5fa', background:'rgba(96,165,250,0.1)', border:'1px solid rgba(96,165,250,0.2)', padding:'0.12rem 0.45rem', borderRadius:20 }}>By Teacher</span>}
-                          {hasWelfare&&<span style={{ fontSize:'0.62rem', fontWeight:700, color:'#f87171', background:'rgba(248,113,113,0.1)', border:'1px solid rgba(248,113,113,0.2)', padding:'0.12rem 0.45rem', borderRadius:20 }}>🚩 Welfare</span>}
-                          {family.children.some(c=>c.hasAllergies||c.hasMedicalCondition)&&<span style={{ fontSize:'0.62rem', fontWeight:700, color:'#fbbf24', background:'rgba(251,191,36,0.1)', border:'1px solid rgba(251,191,36,0.2)', padding:'0.12rem 0.45rem', borderRadius:20 }}>⚠ Medical</span>}
+                          {family.registeredBy==='teacher'&&<span style={{ fontSize:'0.62rem', fontWeight:700, color:'#c8a84b', background:'rgba(200,168,75,0.1)', border:'1px solid rgba(200,168,75,0.2)', padding:'0.12rem 0.45rem', borderRadius:20 }}>By Teacher</span>}
+                          {hasWelfare&&<span style={{ fontSize:'0.62rem', fontWeight:700, color:'#e05252', background:'rgba(224,82,82,0.1)', border:'1px solid rgba(224,82,82,0.2)', padding:'0.12rem 0.45rem', borderRadius:20 }}>🚩 Welfare</span>}
+                          {family.children.some(c=>c.hasAllergies||c.hasMedicalCondition)&&<span style={{ fontSize:'0.62rem', fontWeight:700, color:'#c8a84b', background:'rgba(200,168,75,0.1)', border:'1px solid rgba(200,168,75,0.2)', padding:'0.12rem 0.45rem', borderRadius:20 }}>⚠ Medical</span>}
                           <span style={{ fontSize:'0.62rem', fontWeight:700, color:'rgba(255,255,255,0.3)', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', padding:'0.12rem 0.45rem', borderRadius:20 }}>{family.children.length} child{family.children.length!==1?'ren':''}</span>
                         </div>
                       </div>
@@ -958,6 +1107,12 @@ export default function TeacherDashboard({
                   <div><div className="td-page-title">Attendance Report</div><div className="td-page-sub">Trends, charts & per-child breakdown · Grade 3</div></div>
                 </div>
 
+                {/* Live sync notice */}
+                <div style={{ padding:'10px 14px', borderRadius:9, background:'rgba(109,179,63,0.07)', border:'1px solid rgba(109,179,63,0.18)', fontSize:'0.78rem', color:'#6db33f', marginBottom:'1rem', display:'flex', gap:'0.5rem', alignItems:'center' }}>
+                  <span>🔄</span>
+                  <span>Report reflects live data from the Attendance tab. Currently selected date: <strong>{fmtDateLong(selectedDate)}</strong> — {isDateSaved ? `✓ Saved (${livePresent} present, ${liveAbsent} absent, ${lateLive} late, ${liveFed} fed)` : '⏳ Unsaved'}</span>
+                </div>
+
                 {/* Date range */}
                 <div className="td-card" style={{ marginBottom:'1rem', padding:'1rem 1.25rem' }}>
                   <div style={{ display:'flex', alignItems:'flex-end', gap:'1rem', flexWrap:'wrap' }}>
@@ -971,7 +1126,7 @@ export default function TeacherDashboard({
                     </div>
                     <div style={{ display:'flex', gap:'0.5rem', flexWrap:'wrap', paddingBottom:'0.05rem' }}>
                       {[{label:'Last 4 weeks',weeks:4},{label:'Last 8 weeks',weeks:8},{label:'Last 3 months',weeks:13}].map(({ label, weeks }) => (
-                        <button key={label} onClick={() => { const end=new Date(),start=new Date(); start.setDate(start.getDate()-weeks*7); setReportStartDate(start.toISOString().split('T')[0]); setReportEndDate(end.toISOString().split('T')[0]); }} style={{ padding:'0.5rem 0.85rem', borderRadius:8, fontSize:'0.75rem', fontWeight:600, cursor:'pointer', fontFamily:"'DM Sans',sans-serif", border:'1px solid rgba(96,165,250,0.2)', background:'rgba(96,165,250,0.07)', color:'#60a5fa', transition:'all 0.15s' }}>{label}</button>
+                        <button key={label} onClick={() => { const end=new Date(),start=new Date(); start.setDate(start.getDate()-weeks*7); setReportStartDate(start.toISOString().split('T')[0]); setReportEndDate(end.toISOString().split('T')[0]); }} style={{ padding:'0.5rem 0.85rem', borderRadius:8, fontSize:'0.75rem', fontWeight:600, cursor:'pointer', fontFamily:"'DM Sans',sans-serif", border:'1px solid rgba(200,168,75,0.2)', background:'rgba(200,168,75,0.07)', color:'#c8a84b', transition:'all 0.15s' }}>{label}</button>
                       ))}
                     </div>
                   </div>
@@ -980,10 +1135,10 @@ export default function TeacherDashboard({
                 {/* Summary stats */}
                 <div className="td-stats-grid" style={{ marginBottom:'1rem' }}>
                   {[
-                    { icon:'📅', label:'Sundays in Range',  value:reportData.sundays.length,      color:'#60a5fa' },
-                    { icon:'✅', label:'Sessions Recorded', value:reportData.savedSundays.length,  color:'#34d399' },
-                    { icon:'📊', label:'Avg Attendance',    value:`${reportData.avgPct}%`,          color:reportData.avgPct>=80?'#34d399':reportData.avgPct>=60?'#fbbf24':'#f87171' },
-                    { icon:'🍽', label:'Total Fed',         value:reportData.totalFed,              color:'#60a5fa' },
+                    { icon:'📅', label:'Sundays in Range',  value:reportData.sundays.length,      color:'#c8a84b' },
+                    { icon:'✅', label:'Sessions Recorded', value:reportData.savedSundays.length,  color:'#6db33f' },
+                    { icon:'📊', label:'Avg Attendance',    value:`${reportData.avgPct}%`,          color:reportData.avgPct>=80?'#6db33f':reportData.avgPct>=60?'#c8a84b':'#e05252' },
+                    { icon:'🍽', label:'Total Fed',         value:reportData.totalFed,              color:'#8bc4e8' },
                   ].map(s => (
                     <div key={s.label} className="td-stat-card">
                       <div className="td-stat-icon">{s.icon}</div>
@@ -995,19 +1150,18 @@ export default function TeacherDashboard({
 
                 {/* Charts row */}
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem', marginBottom:'1rem' }}>
-                  {/* Pie chart */}
                   <div className="td-card">
                     <div className="td-card-title" style={{ marginBottom:'1rem' }}>🥧 Overall Attendance Split</div>
                     {reportData.savedSundays.length === 0
                       ? <div style={{ textAlign:'center', color:'rgba(255,255,255,0.3)', padding:'2rem', fontSize:'0.85rem' }}>No recorded sessions in this range.</div>
                       : <div style={{ display:'flex', alignItems:'center', gap:'1.5rem', flexWrap:'wrap' }}>
                           <PieChart size={150} data={[
-                            { label:'Present', value:reportData.totalPresent, color:'#34d399' },
-                            { label:'Late',    value:reportData.totalLate,    color:'#fbbf24' },
-                            { label:'Absent',  value:reportData.totalAbsent,  color:'#f87171' },
+                            { label:'Present', value:reportData.totalPresent, color:'#6db33f' },
+                            { label:'Late',    value:reportData.totalLate,    color:'#c8a84b' },
+                            { label:'Absent',  value:reportData.totalAbsent,  color:'#e05252' },
                           ]} />
                           <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem' }}>
-                            {[{label:'Present',value:reportData.totalPresent,color:'#34d399'},{label:'Late',value:reportData.totalLate,color:'#fbbf24'},{label:'Absent',value:reportData.totalAbsent,color:'#f87171'}].map(({ label, value, color }) => (
+                            {[{label:'Present',value:reportData.totalPresent,color:'#6db33f'},{label:'Late',value:reportData.totalLate,color:'#c8a84b'},{label:'Absent',value:reportData.totalAbsent,color:'#e05252'}].map(({ label, value, color }) => (
                               <div key={label} style={{ display:'flex', alignItems:'center', gap:'0.6rem' }}>
                                 <div style={{ width:10, height:10, borderRadius:2, background:color, flexShrink:0 }} />
                                 <span style={{ fontSize:'0.78rem', color:'rgba(255,255,255,0.6)', minWidth:55 }}>{label}</span>
@@ -1021,7 +1175,6 @@ export default function TeacherDashboard({
                         </div>}
                   </div>
 
-                  {/* Second pie — fed vs not */}
                   <div className="td-card">
                     <div className="td-card-title" style={{ marginBottom:'1rem' }}>🍽 Feeding Split</div>
                     {reportData.savedSundays.length === 0
@@ -1032,11 +1185,11 @@ export default function TeacherDashboard({
                           return (
                             <div style={{ display:'flex', alignItems:'center', gap:'1.5rem', flexWrap:'wrap' }}>
                               <PieChart size={150} data={[
-                                { label:'Fed',     value:reportData.totalFed, color:'#60a5fa' },
+                                { label:'Fed',     value:reportData.totalFed, color:'#8bc4e8' },
                                 { label:'Not Fed', value:notFed,              color:'rgba(255,255,255,0.12)' },
                               ]} />
                               <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem' }}>
-                                {[{label:'Fed',value:reportData.totalFed,color:'#60a5fa'},{label:'Not Fed',value:notFed,color:'rgba(255,255,255,0.35)'}].map(({ label, value, color }) => (
+                                {[{label:'Fed',value:reportData.totalFed,color:'#8bc4e8'},{label:'Not Fed',value:notFed,color:'rgba(255,255,255,0.35)'}].map(({ label, value, color }) => (
                                   <div key={label} style={{ display:'flex', alignItems:'center', gap:'0.6rem' }}>
                                     <div style={{ width:10, height:10, borderRadius:2, background:color, flexShrink:0 }} />
                                     <span style={{ fontSize:'0.78rem', color:'rgba(255,255,255,0.6)', minWidth:55 }}>{label}</span>
@@ -1059,7 +1212,7 @@ export default function TeacherDashboard({
                   <BarChart stats={reportData.sundayStats} />
                   {reportData.sundayStats.length > 0 && (
                     <div style={{ display:'flex', gap:'1rem', marginTop:'0.85rem', flexWrap:'wrap' }}>
-                      {[{color:'#34d399',label:'≥80% Good'},{color:'#fbbf24',label:'60-79% Fair'},{color:'#f87171',label:'<60% Low'}].map(l => (
+                      {[{color:'#6db33f',label:'≥80% Good'},{color:'#c8a84b',label:'60-79% Fair'},{color:'#e05252',label:'<60% Low'}].map(l => (
                         <div key={l.label} style={{ display:'flex', alignItems:'center', gap:'0.4rem', fontSize:'0.72rem', color:'rgba(255,255,255,0.45)' }}>
                           <div style={{ width:10, height:10, borderRadius:2, background:l.color }} />{l.label}
                         </div>
@@ -1078,14 +1231,14 @@ export default function TeacherDashboard({
                       <thead><tr><th>Date</th><th>Present</th><th>Late</th><th>Absent</th><th>🍽 Fed</th><th>Att %</th></tr></thead>
                       <tbody>
                         {reportData.sundayStats.map(s => {
-                          const color = s.pct>=80?'#34d399':s.pct>=60?'#fbbf24':'#f87171';
+                          const color = s.pct>=80?'#6db33f':s.pct>=60?'#c8a84b':'#e05252';
                           return (
                             <tr key={s.date} className="td-reg-tr">
                               <td style={{ fontSize:'0.82rem', color:'#fff', fontWeight:600 }}>{new Date(s.date+'T00:00:00').toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short',year:'numeric'})}</td>
-                              <td style={{ color:'#34d399', fontWeight:700, fontSize:'0.85rem' }}>{s.present}</td>
-                              <td style={{ color:'#fbbf24', fontSize:'0.85rem' }}>{s.late}</td>
-                              <td style={{ color:'#f87171', fontSize:'0.85rem' }}>{s.absent}</td>
-                              <td style={{ color:'#60a5fa', fontSize:'0.85rem' }}>{s.fed}</td>
+                              <td style={{ color:'#6db33f', fontWeight:700, fontSize:'0.85rem' }}>{s.present}</td>
+                              <td style={{ color:'#c8a84b', fontSize:'0.85rem' }}>{s.late}</td>
+                              <td style={{ color:'#e05252', fontSize:'0.85rem' }}>{s.absent}</td>
+                              <td style={{ color:'#8bc4e8', fontSize:'0.85rem' }}>{s.fed}</td>
                               <td>
                                 <div style={{ display:'flex', alignItems:'center', gap:'0.6rem' }}>
                                   <div style={{ flex:1, height:6, borderRadius:3, background:'rgba(255,255,255,0.06)', overflow:'hidden', minWidth:60 }}>
@@ -1106,7 +1259,7 @@ export default function TeacherDashboard({
                 <div className="td-card" style={{ padding:0, overflow:'hidden' }}>
                   <div style={{ padding:'1rem 1.25rem', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
                     <div className="td-card-title">Per-Child Attendance Breakdown</div>
-                    <div style={{ fontSize:'0.72rem', color:'rgba(255,255,255,0.35)', marginTop:4 }}>Based on {reportData.savedSundays.length} recorded session{reportData.savedSundays.length!==1?'s':''}. Click row to open profile.</div>
+                    <div style={{ fontSize:'0.72rem', color:'rgba(255,255,255,0.35)', marginTop:4 }}>Based on {reportData.savedSundays.length} recorded session{reportData.savedSundays.length!==1?'s':''}. Click row to go to Class Register.</div>
                   </div>
                   {reportData.savedSundays.length === 0
                     ? <div style={{ textAlign:'center', color:'rgba(255,255,255,0.3)', padding:'2rem', fontSize:'0.85rem' }}>No recorded sessions in this date range.</div>
@@ -1114,10 +1267,10 @@ export default function TeacherDashboard({
                         <thead><tr><th>Child</th><th>Attended</th><th>Missed</th><th>Att %</th><th>Status</th></tr></thead>
                         <tbody>
                           {reportData.childStats.map((cs, idx) => {
-                            const color = cs.pct>=80?'#34d399':cs.pct>=60?'#fbbf24':'#f87171';
+                            const color = cs.pct>=80?'#6db33f':cs.pct>=60?'#c8a84b':'#e05252';
                             const statusLabel = cs.pct>=80?'Good':cs.pct>=60?'Fair':cs.pct>0?'At Risk':'No Data';
                             return (
-                              <tr key={cs.child.id} className="td-reg-tr td-clickable-row" onClick={() => setSelectedChildId(cs.child.id)}>
+                              <tr key={cs.child.id} className="td-reg-tr td-clickable-row" onClick={() => setActiveTab('register')}>
                                 <td>
                                   <div style={{ display:'flex', alignItems:'center', gap:'0.6rem' }}>
                                     <div className="td-avatar-xs" style={{ background:avatarColor(cs.child.id,idx) }}>{initials(cs.child.firstName,cs.child.lastName)}</div>
@@ -1127,8 +1280,8 @@ export default function TeacherDashboard({
                                     </div>
                                   </div>
                                 </td>
-                                <td style={{ color:'#34d399', fontWeight:700, fontSize:'0.85rem' }}>{cs.attended}</td>
-                                <td style={{ color:'#f87171', fontSize:'0.85rem' }}>{cs.total-cs.attended}</td>
+                                <td style={{ color:'#6db33f', fontWeight:700, fontSize:'0.85rem' }}>{cs.attended}</td>
+                                <td style={{ color:'#e05252', fontSize:'0.85rem' }}>{cs.total-cs.attended}</td>
                                 <td>
                                   <div style={{ display:'flex', alignItems:'center', gap:'0.6rem' }}>
                                     <div style={{ width:80, height:7, borderRadius:4, background:'rgba(255,255,255,0.06)', overflow:'hidden' }}>
@@ -1154,123 +1307,182 @@ export default function TeacherDashboard({
   );
 }
 
-// ─── CSS ──────────────────────────────────────────────────────────────────────
+// ─── CSS — green palette matching the admin dashboard screenshot ──────────────
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap');
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body, #root { width: 100%; min-height: 100vh; background: #060f08; font-family: 'DM Sans', sans-serif; -webkit-font-smoothing: antialiased; }
+html, body, #root { width: 100%; min-height: 100vh; background: #0a1a0a; font-family: 'DM Sans', sans-serif; -webkit-font-smoothing: antialiased; }
+
+/* ── Auth centering (Application Submitted screen) ── */
+.td-auth-center { display:flex; min-height:100vh; width:100%; align-items:center; justify-content:center; background:#0a1a0a; }
+
 @keyframes tdFadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
 .td-fade { animation: tdFadeUp 0.25s ease; }
-.td-root { display:flex; flex-direction:column; width:100vw; min-height:100vh; background:#060f08; color:#fff; overflow-x:hidden; }
-.td-header { width:100%; background:rgba(255,255,255,0.025); border-bottom:1px solid rgba(255,255,255,0.06); padding:0 clamp(16px,3vw,40px); height:64px; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-shrink:0; }
+.td-root { display:flex; flex-direction:column; width:100%; min-height:100vh; background:#0a1a0a; color:#fff; overflow-x:hidden; }
+
+/* Header */
+.td-header { width:100%; background:#0f200f; border-bottom:1px solid rgba(109,179,63,0.15); padding:0 clamp(16px,3vw,40px); height:64px; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-shrink:0; }
 .td-brand { display:flex; align-items:center; gap:10px; flex-shrink:0; }
-.td-brand-badge { width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg,#60a5fa,#2563eb); display:flex; align-items:center; justify-content:center; font-size:1.1rem; }
+.td-brand-badge { width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg,#6db33f,#4a8a28); display:flex; align-items:center; justify-content:center; font-size:1.1rem; }
 .td-brand-name { font-family:'Bebas Neue',sans-serif; font-size:14px; color:#fff; letter-spacing:0.5px; line-height:1.2; }
 .td-brand-sub { font-size:10px; color:rgba(255,255,255,0.38); text-transform:uppercase; letter-spacing:0.6px; }
 .td-header-right { display:flex; align-items:center; gap:10px; }
-.td-user-chip { display:flex; align-items:center; gap:8px; padding:5px 12px; background:rgba(255,255,255,0.04); border-radius:8px; border:1px solid rgba(255,255,255,0.07); }
-.td-avatar-sm { width:28px; height:28px; border-radius:50%; background:#60a5fa; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#0a1628; flex-shrink:0; }
+.td-user-chip { display:flex; align-items:center; gap:8px; padding:5px 12px; background:rgba(109,179,63,0.07); border-radius:8px; border:1px solid rgba(109,179,63,0.15); }
+.td-avatar-sm { width:28px; height:28px; border-radius:50%; background:#6db33f; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#0a1a0a; flex-shrink:0; }
 .td-user-name { font-size:12.5px; font-weight:600; color:#fff; line-height:1.2; }
 .td-user-role { font-size:10.5px; color:rgba(255,255,255,0.4); }
 .td-signout { padding:7px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:transparent; color:rgba(255,255,255,0.55); font-size:12.5px; font-weight:500; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; white-space:nowrap; }
 .td-signout:hover { color:#fff; border-color:rgba(255,255,255,0.25); }
-.td-tab-nav { width:100%; display:flex; background:rgba(255,255,255,0.015); border-bottom:1px solid rgba(255,255,255,0.06); overflow-x:auto; scrollbar-width:none; flex-shrink:0; padding:0 clamp(16px,3vw,40px); }
+
+/* Tabs */
+.td-tab-nav { width:100%; display:flex; background:#0d1a0d; border-bottom:1px solid rgba(109,179,63,0.12); overflow-x:auto; scrollbar-width:none; flex-shrink:0; padding:0 clamp(16px,3vw,40px); }
 .td-tab-nav::-webkit-scrollbar { display:none; }
 .td-tab { flex-shrink:0; padding:0 clamp(10px,1.5vw,20px); height:48px; display:flex; align-items:center; background:none; border:none; color:rgba(255,255,255,0.45); font-family:'DM Sans',sans-serif; font-size:0.83rem; font-weight:600; cursor:pointer; transition:all 0.2s; white-space:nowrap; border-bottom:2px solid transparent; }
 .td-tab:hover { color:rgba(255,255,255,0.75); }
-.td-tab--active { color:#60a5fa !important; border-bottom-color:#60a5fa; }
+.td-tab--active { color:#c8a84b !important; border-bottom-color:#c8a84b; }
+
+/* Main */
 .td-main { flex:1; width:100%; overflow-y:auto; padding:clamp(16px,2.5vw,36px) clamp(16px,3vw,40px); }
-.td-content { width:100%; }
-.td-hero { width:100%; background:linear-gradient(135deg,#0a1f5c 0%,#04091e 100%); border-radius:16px; padding:clamp(20px,3vw,40px); margin-bottom:1.25rem; border:1px solid rgba(255,255,255,0.07); box-shadow:0 20px 60px rgba(0,0,0,0.45); position:relative; overflow:hidden; }
-.td-hero-glow { position:absolute; top:-50px; right:-50px; width:240px; height:240px; border-radius:50%; background:radial-gradient(circle,rgba(96,165,250,0.12) 0%,transparent 70%); pointer-events:none; }
-.td-hero-pill { display:inline-flex; align-items:center; gap:7px; padding:5px 13px; border-radius:100px; background:rgba(96,165,250,0.12); border:1px solid rgba(96,165,250,0.3); color:#60a5fa; font-size:11.5px; font-weight:700; font-family:'Bebas Neue',sans-serif; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:16px; }
-.td-hero-dot { width:6px; height:6px; border-radius:50%; background:#60a5fa; display:inline-block; }
+.td-content { width:100%; max-width:1400px; margin:0 auto; }
+
+/* Hero */
+.td-hero { width:100%; background:linear-gradient(135deg,#0f2a0f 0%,#0a1a0a 100%); border-radius:16px; padding:clamp(20px,3vw,40px); margin-bottom:1.25rem; border:1px solid rgba(109,179,63,0.12); box-shadow:0 20px 60px rgba(0,0,0,0.45); position:relative; overflow:hidden; }
+.td-hero-glow { position:absolute; top:-50px; right:-50px; width:240px; height:240px; border-radius:50%; background:radial-gradient(circle,rgba(109,179,63,0.1) 0%,transparent 70%); pointer-events:none; }
+.td-hero-pill { display:inline-flex; align-items:center; gap:7px; padding:5px 13px; border-radius:100px; background:rgba(109,179,63,0.12); border:1px solid rgba(109,179,63,0.3); color:#6db33f; font-size:11.5px; font-weight:700; font-family:'Bebas Neue',sans-serif; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:16px; }
+.td-hero-dot { width:6px; height:6px; border-radius:50%; background:#6db33f; display:inline-block; }
 .td-hero-h1 { font-family:'Bebas Neue',sans-serif; font-size:clamp(22px,3.5vw,34px); color:#fff; margin:0 0 10px; line-height:1.2; }
-.td-blue { color:#60a5fa; }
-.td-hero-p { color:rgba(184,212,220,0.8); font-size:14px; line-height:1.65; margin:0 0 22px; }
+.td-accent { color:#c8a84b; }
+.td-hero-p { color:rgba(200,220,200,0.8); font-size:14px; line-height:1.65; margin:0 0 22px; }
 .td-hero-chips { display:flex; flex-wrap:wrap; gap:10px; }
-.td-chip { padding:9px 14px; border-radius:9px; background:rgba(0,0,0,0.28); border:1px solid rgba(255,255,255,0.08); }
+.td-chip { padding:9px 14px; border-radius:9px; background:rgba(0,0,0,0.3); border:1px solid rgba(109,179,63,0.1); }
 .td-chip-l { font-size:10.5px; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:2px; }
 .td-chip-v { font-size:13px; font-weight:600; color:#fff; }
+
+/* Stats */
 .td-stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:0.85rem; margin-bottom:1.25rem; }
-.td-stat-card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1rem; text-align:center; }
+.td-stat-card { background:#0f200f; border:1px solid rgba(109,179,63,0.1); border-radius:12px; padding:1rem; text-align:center; }
 .td-stat-icon { font-size:1.5rem; margin-bottom:6px; }
 .td-stat-value { font-family:'Bebas Neue',sans-serif; font-size:1.9rem; line-height:1; }
 .td-stat-label { font-size:0.68rem; color:rgba(255,255,255,0.4); font-weight:600; margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; }
-.td-card { background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.065); border-radius:14px; padding:clamp(14px,2vw,24px); margin-bottom:1.25rem; }
-.td-card-title { font-family:'Bebas Neue',sans-serif; font-size:1rem; letter-spacing:1.5px; color:#60a5fa; margin-bottom:0; }
+
+/* Cards */
+.td-card { background:#0f200f; border:1px solid rgba(109,179,63,0.1); border-radius:14px; padding:clamp(14px,2vw,24px); margin-bottom:1.25rem; }
+.td-card-title { font-family:'Bebas Neue',sans-serif; font-size:1rem; letter-spacing:1.5px; color:#c8a84b; margin-bottom:0; }
+
+/* Quick grid */
 .td-quick-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:0.7rem; margin-top:0.85rem; }
-.td-quick-btn { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:0.9rem 0.4rem; text-align:center; cursor:pointer; transition:all 0.2s; font-family:'DM Sans',sans-serif; }
-.td-quick-btn:hover { background:rgba(96,165,250,0.06); border-color:rgba(96,165,250,0.2); }
-.td-quick-btn--urgent { border-color:rgba(251,191,36,0.3); background:rgba(251,191,36,0.05); }
+.td-quick-btn { background:rgba(255,255,255,0.02); border:1px solid rgba(109,179,63,0.08); border-radius:12px; padding:0.9rem 0.4rem; text-align:center; cursor:pointer; transition:all 0.2s; font-family:'DM Sans',sans-serif; }
+.td-quick-btn:hover { background:rgba(109,179,63,0.06); border-color:rgba(109,179,63,0.25); }
+.td-quick-btn--urgent { border-color:rgba(200,168,75,0.3); background:rgba(200,168,75,0.05); }
 .td-quick-icon { font-size:1.4rem; margin-bottom:5px; }
 .td-quick-label { font-size:0.76rem; font-weight:700; color:#fff; margin-bottom:2px; }
 .td-quick-sub { font-size:0.65rem; color:rgba(255,255,255,0.35); }
-.td-alert-row { display:flex; align-items:flex-start; gap:0.75rem; padding:0.75rem 0.9rem; border-radius:9px; background:rgba(251,191,36,0.05); border:1px solid rgba(251,191,36,0.15); margin-bottom:0.5rem; transition:all 0.15s; }
-.td-alert-row:hover { background:rgba(251,191,36,0.1); }
+
+/* Alert row */
+.td-alert-row { display:flex; align-items:flex-start; gap:0.75rem; padding:0.75rem 0.9rem; border-radius:9px; background:rgba(200,168,75,0.05); border:1px solid rgba(200,168,75,0.15); margin-bottom:0.5rem; transition:all 0.15s; }
+.td-alert-row:hover { background:rgba(200,168,75,0.09); }
 .td-avatar-xs { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.72rem; font-weight:700; color:#fff; flex-shrink:0; }
+
+/* Page header */
 .td-page-header { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.25rem; }
 .td-page-title { font-family:'Bebas Neue',sans-serif; font-size:1.6rem; color:#fff; letter-spacing:1px; }
 .td-page-sub { color:rgba(255,255,255,0.4); font-size:0.8rem; margin-top:2px; }
-.td-att-summary { display:flex; gap:0; margin-bottom:1rem; background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.065); border-radius:12px; overflow:hidden; }
-.td-att-sum-item { flex:1; padding:0.9rem 0.5rem; text-align:center; border-right:1px solid rgba(255,255,255,0.05); }
+
+/* Attendance summary bar */
+.td-att-summary { display:flex; gap:0; margin-bottom:1rem; background:#0f200f; border:1px solid rgba(109,179,63,0.1); border-radius:12px; overflow:hidden; }
+.td-att-sum-item { flex:1; padding:0.9rem 0.5rem; text-align:center; border-right:1px solid rgba(109,179,63,0.07); }
 .td-att-sum-item:last-child { border-right:none; }
+
+/* Attendance table */
 .td-att-table { width:100%; border-collapse:collapse; }
-.td-att-table th { padding:0.75rem 1rem; text-align:left; font-size:0.68rem; font-weight:700; color:rgba(255,255,255,0.35); text-transform:uppercase; letter-spacing:0.8px; border-bottom:1px solid rgba(255,255,255,0.07); background:rgba(255,255,255,0.02); }
-.td-att-tr { border-bottom:1px solid rgba(255,255,255,0.04); transition:background 0.15s; }
+.td-att-table th { padding:0.75rem 1rem; text-align:left; font-size:0.68rem; font-weight:700; color:rgba(255,255,255,0.35); text-transform:uppercase; letter-spacing:0.8px; border-bottom:1px solid rgba(109,179,63,0.08); background:rgba(15,32,15,0.8); }
+.td-att-tr { border-bottom:1px solid rgba(109,179,63,0.05); transition:background 0.15s; }
 .td-att-tr:last-child { border-bottom:none; }
-.td-att-tr:hover { background:rgba(255,255,255,0.02); }
-.td-att-tr--present { background:rgba(52,211,153,0.03); }
-.td-att-tr--absent { background:rgba(248,113,113,0.03); }
-.td-att-tr--late { background:rgba(251,191,36,0.03); }
+.td-att-tr:hover { background:rgba(109,179,63,0.03); }
+.td-att-tr--present { background:rgba(109,179,63,0.04); }
+.td-att-tr--absent { background:rgba(224,82,82,0.04); }
+.td-att-tr--late { background:rgba(200,168,75,0.04); }
 .td-att-table td { padding:0.75rem 1rem; vertical-align:middle; }
+
+/* Clickable rows */
 .td-clickable-row { cursor:pointer; }
-.td-clickable-row:hover { background:rgba(96,165,250,0.04) !important; }
+.td-clickable-row:hover { background:rgba(200,168,75,0.04) !important; }
+
+/* Status buttons (legacy — kept for potential use) */
 .td-status-btns { display:flex; gap:0.35rem; flex-wrap:wrap; }
 .td-status-btn { padding:0.28rem 0.6rem; border-radius:6px; border:1px solid transparent; font-size:0.71rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.15s; text-transform:capitalize; }
-.td-status-btn--present { border-color:rgba(52,211,153,0.2); color:rgba(52,211,153,0.55); background:transparent; }
-.td-status-btn--absent { border-color:rgba(248,113,113,0.2); color:rgba(248,113,113,0.55); background:transparent; }
-.td-status-btn--late { border-color:rgba(251,191,36,0.2); color:rgba(251,191,36,0.55); background:transparent; }
-.td-status-btn--present.active { background:rgba(52,211,153,0.15); color:#34d399; border-color:#34d399; }
-.td-status-btn--absent.active { background:rgba(248,113,113,0.15); color:#f87171; border-color:#f87171; }
-.td-status-btn--late.active { background:rgba(251,191,36,0.15); color:#fbbf24; border-color:#fbbf24; }
+.td-status-btn--present { border-color:rgba(109,179,63,0.2); color:rgba(109,179,63,0.55); background:transparent; }
+.td-status-btn--absent  { border-color:rgba(224,82,82,0.2);  color:rgba(224,82,82,0.55);  background:transparent; }
+.td-status-btn--late    { border-color:rgba(200,168,75,0.2);  color:rgba(200,168,75,0.55);  background:transparent; }
+.td-status-btn--present.active { background:rgba(109,179,63,0.15); color:#6db33f; border-color:#6db33f; }
+.td-status-btn--absent.active  { background:rgba(224,82,82,0.15);  color:#e05252; border-color:#e05252; }
+.td-status-btn--late.active    { background:rgba(200,168,75,0.15);  color:#c8a84b; border-color:#c8a84b; }
+
+/* Fed button */
 .td-fed-btn { padding:0.3rem 0.7rem; border-radius:6px; border:1px solid rgba(255,255,255,0.1); background:transparent; color:rgba(255,255,255,0.3); font-size:0.75rem; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.15s; white-space:nowrap; }
-.td-fed-btn--active { background:rgba(96,165,250,0.12); border-color:#60a5fa; color:#60a5fa; }
-.td-btn-primary { padding:0.65rem 1.25rem; border-radius:8px; border:none; background:linear-gradient(135deg,#60a5fa,#2563eb); color:#fff; font-family:'DM Sans',sans-serif; font-weight:700; font-size:0.875rem; cursor:pointer; transition:all 0.2s; white-space:nowrap; }
-.td-btn-primary:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 6px 18px rgba(96,165,250,0.35); }
+.td-fed-btn--active { background:rgba(139,196,232,0.12); border-color:#8bc4e8; color:#8bc4e8; }
+
+/* Primary/danger buttons */
+.td-btn-primary { padding:0.65rem 1.25rem; border-radius:8px; border:none; background:linear-gradient(135deg,#6db33f,#4a8a28); color:#fff; font-family:'DM Sans',sans-serif; font-weight:700; font-size:0.875rem; cursor:pointer; transition:all 0.2s; white-space:nowrap; }
+.td-btn-primary:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 6px 18px rgba(109,179,63,0.35); }
 .td-btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
-.td-btn-danger { padding:0.65rem 1.25rem; border-radius:8px; background:rgba(248,113,113,0.15); color:#f87171; border:1px solid rgba(248,113,113,0.3); font-family:'DM Sans',sans-serif; font-weight:700; font-size:0.875rem; cursor:pointer; transition:all 0.2s; }
-.td-btn-danger:hover { background:rgba(248,113,113,0.25); }
+.td-btn-danger { padding:0.65rem 1.25rem; border-radius:8px; background:rgba(224,82,82,0.15); color:#e05252; border:1px solid rgba(224,82,82,0.3); font-family:'DM Sans',sans-serif; font-weight:700; font-size:0.875rem; cursor:pointer; transition:all 0.2s; }
+.td-btn-danger:hover { background:rgba(224,82,82,0.25); }
+
+/* Welfare */
 .td-welfare-row { padding:0.9rem 1rem; border-radius:10px; border:1px solid transparent; transition:opacity 0.2s; }
-.td-welfare-row--low { background:rgba(251,191,36,0.06); border-color:rgba(251,191,36,0.18); }
-.td-welfare-row--medium { background:rgba(251,146,60,0.06); border-color:rgba(251,146,60,0.2); }
-.td-welfare-row--high { background:rgba(248,113,113,0.07); border-color:rgba(248,113,113,0.25); }
+.td-welfare-row--low    { background:rgba(200,168,75,0.06);  border-color:rgba(200,168,75,0.18); }
+.td-welfare-row--medium { background:rgba(200,120,60,0.06);  border-color:rgba(200,120,60,0.2); }
+.td-welfare-row--high   { background:rgba(224,82,82,0.07);   border-color:rgba(224,82,82,0.25); }
 .td-welfare-row--resolved { opacity:0.45; }
 .td-sev-badge { padding:0.15rem 0.55rem; border-radius:20px; font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; }
-.td-sev-badge--low { background:rgba(251,191,36,0.12); color:#fbbf24; border:1px solid rgba(251,191,36,0.2); }
-.td-sev-badge--medium { background:rgba(251,146,60,0.12); color:#fb923c; border:1px solid rgba(251,146,60,0.25); }
-.td-sev-badge--high { background:rgba(248,113,113,0.12); color:#f87171; border:1px solid rgba(248,113,113,0.25); }
-.td-resolve-btn { padding:0.2rem 0.65rem; border-radius:6px; border:1px solid rgba(52,211,153,0.25); background:transparent; color:#34d399; font-size:0.72rem; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.15s; }
-.td-resolve-btn:hover { background:rgba(52,211,153,0.1); }
-.td-resolved-badge { padding:0.2rem 0.65rem; border-radius:6px; background:rgba(52,211,153,0.1); color:#34d399; font-size:0.72rem; font-weight:700; }
+.td-sev-badge--low    { background:rgba(200,168,75,0.12); color:#c8a84b; border:1px solid rgba(200,168,75,0.2); }
+.td-sev-badge--medium { background:rgba(200,120,60,0.12); color:#c87838; border:1px solid rgba(200,120,60,0.25); }
+.td-sev-badge--high   { background:rgba(224,82,82,0.12);  color:#e05252; border:1px solid rgba(224,82,82,0.25); }
+.td-resolve-btn { padding:0.2rem 0.65rem; border-radius:6px; border:1px solid rgba(109,179,63,0.25); background:transparent; color:#6db33f; font-size:0.72rem; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.15s; }
+.td-resolve-btn:hover { background:rgba(109,179,63,0.1); }
+.td-resolved-badge { padding:0.2rem 0.65rem; border-radius:6px; background:rgba(109,179,63,0.1); color:#6db33f; font-size:0.72rem; font-weight:700; }
+
+/* Register table */
 .td-reg-table { width:100%; border-collapse:collapse; }
-.td-reg-table th { padding:0.75rem 1rem; text-align:left; font-size:0.68rem; font-weight:700; color:rgba(255,255,255,0.35); text-transform:uppercase; letter-spacing:0.8px; border-bottom:1px solid rgba(255,255,255,0.07); background:rgba(255,255,255,0.02); white-space:nowrap; }
-.td-reg-tr { border-bottom:1px solid rgba(255,255,255,0.04); transition:background 0.15s; }
+.td-reg-table th { padding:0.75rem 1rem; text-align:left; font-size:0.68rem; font-weight:700; color:rgba(255,255,255,0.35); text-transform:uppercase; letter-spacing:0.8px; border-bottom:1px solid rgba(109,179,63,0.08); background:rgba(15,32,15,0.8); white-space:nowrap; }
+.td-reg-tr { border-bottom:1px solid rgba(109,179,63,0.05); transition:background 0.15s; }
 .td-reg-tr:last-child { border-bottom:none; }
-.td-reg-tr:hover { background:rgba(255,255,255,0.02); }
+.td-reg-tr:hover { background:rgba(109,179,63,0.03); }
 .td-reg-table td { padding:0.75rem 1rem; vertical-align:middle; }
+
+/* Pills and tags */
 .td-status-pill { padding:0.15rem 0.55rem; border-radius:20px; font-size:0.72rem; font-weight:700; text-transform:capitalize; }
-.td-tag-warn { background:rgba(251,191,36,0.1); color:#fbbf24; border:1px solid rgba(251,191,36,0.2); padding:0.15rem 0.55rem; border-radius:20px; font-size:0.72rem; font-weight:700; }
-.td-tag-danger { background:rgba(248,113,113,0.1); color:#f87171; border:1px solid rgba(248,113,113,0.2); padding:0.15rem 0.55rem; border-radius:20px; font-size:0.72rem; font-weight:700; }
-.td-family-card:hover { transform:translateY(-2px); box-shadow:0 12px 30px rgba(0,0,0,0.4); border-color:rgba(96,165,250,0.3) !important; }
+.td-tag-warn    { background:rgba(200,168,75,0.1);  color:#c8a84b; border:1px solid rgba(200,168,75,0.2);  padding:0.15rem 0.55rem; border-radius:20px; font-size:0.72rem; font-weight:700; }
+.td-tag-danger  { background:rgba(224,82,82,0.1);   color:#e05252; border:1px solid rgba(224,82,82,0.2);   padding:0.15rem 0.55rem; border-radius:20px; font-size:0.72rem; font-weight:700; }
+
+/* Family cards */
+.td-family-card:hover { transform:translateY(-2px); box-shadow:0 12px 30px rgba(0,0,0,0.4); border-color:rgba(109,179,63,0.3) !important; }
+
+/* Form inputs */
 input::placeholder, textarea::placeholder { color:rgba(255,255,255,0.22); }
-input:focus, select:focus, textarea:focus { border-color:#60a5fa !important; outline:none; box-shadow:0 0 0 3px rgba(96,165,250,0.12); }
-select option { background:#04091e; color:#fff; }
+input:focus, select:focus, textarea:focus { border-color:#6db33f !important; outline:none; box-shadow:0 0 0 3px rgba(109,179,63,0.12); }
+select option { background:#0d1a0d; color:#fff; }
+
+/* Scrollbar */
 ::-webkit-scrollbar { width:5px; height:5px; }
 ::-webkit-scrollbar-track { background:transparent; }
-::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:10px; }
+::-webkit-scrollbar-thumb { background:rgba(109,179,63,0.2); border-radius:10px; }
+
+/* Responsive */
 @media (max-width:1100px) { .td-quick-grid { grid-template-columns:repeat(3,1fr); } }
-@media (max-width:900px) { .td-stats-grid { grid-template-columns:repeat(2,1fr); } .td-quick-grid { grid-template-columns:repeat(3,1fr); } }
-@media (max-width:640px) { .td-header { height:auto; padding:10px 16px; } .td-user-chip { display:none; } .td-main { padding:14px; } .td-quick-grid { grid-template-columns:repeat(2,1fr); } .td-att-table th:nth-child(3),.td-att-table td:nth-child(3) { display:none; } .td-reg-table th:nth-child(8),.td-reg-table td:nth-child(8) { display:none; } }
-@media (max-width:400px) { .td-signout { display:none; } .td-stats-grid { grid-template-columns:1fr 1fr; } .td-quick-grid { grid-template-columns:1fr 1fr; } }
+@media (max-width:900px)  { .td-stats-grid { grid-template-columns:repeat(2,1fr); } .td-quick-grid { grid-template-columns:repeat(3,1fr); } }
+@media (max-width:640px)  {
+  .td-header { height:auto; padding:10px 16px; }
+  .td-user-chip { display:none; }
+  .td-main { padding:14px; }
+  .td-quick-grid { grid-template-columns:repeat(2,1fr); }
+  .td-att-table th:nth-child(3),.td-att-table td:nth-child(3) { display:none; }
+  .td-reg-table th:nth-child(8),.td-reg-table td:nth-child(8) { display:none; }
+}
+@media (max-width:400px) {
+  .td-signout { display:none; }
+  .td-stats-grid { grid-template-columns:1fr 1fr; }
+  .td-quick-grid { grid-template-columns:1fr 1fr; }
+}
 `;

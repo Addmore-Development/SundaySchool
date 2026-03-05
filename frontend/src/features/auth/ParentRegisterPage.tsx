@@ -30,7 +30,7 @@ type FormData = {
 };
 
 const initialForm: FormData = {
-  firstName: '', lastName: '', email: '', phone: '', altPhone: '',
+  firstName: '', lastName: '', email: '', phone: '+27', altPhone: '+27',
   gender: '', dateOfBirth: '', idNumber: '', physicalAddress: '',
   suburb: '', city: '', relationshipToChildren: '', employmentStatus: '',
   password: '', confirmPassword: '',
@@ -42,6 +42,47 @@ const STEPS = [
   { id: 2, label: 'Contact',        icon: '📞' },
   { id: 3, label: 'Account',        icon: '🔑' },
 ];
+
+// ── SA Phone helpers ────────────────────────────────────────────────────────────
+const formatSAPhone = (raw: string): string => {
+  let digits = raw.replace(/[^\d]/g, '');
+  if (digits.startsWith('0')) digits = '27' + digits.slice(1);
+  if (!digits.startsWith('27')) digits = '27' + digits;
+  digits = digits.slice(0, 11); // 27 + 9 digits
+  return '+' + digits;
+};
+const validateSAPhone = (val: string): boolean =>
+  val === '+27' || /^\+27\d{9}$/.test(val.replace(/\s/g, ''));
+
+// ── DOB dd/mm/yyyy helpers ──────────────────────────────────────────────────────
+// Format raw digits into dd/mm/yyyy as user types
+const formatDOB = (raw: string): string => {
+  // Keep only digits
+  const digits = raw.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+};
+
+const validateDOB = (val: string): string | null => {
+  if (!val) return 'Required';
+  const parts = val.split('/');
+  if (parts.length !== 3) return 'Use dd/mm/yyyy format';
+  const [dd, mm, yyyy] = parts.map(Number);
+  if (!dd || !mm || !yyyy) return 'Use dd/mm/yyyy format';
+  if (yyyy.toString().length !== 4) return 'Enter a 4-digit year';
+  const currentYear = new Date().getFullYear();
+  if (yyyy < 1900 || yyyy > currentYear) return `Year must be between 1900 and ${currentYear}`;
+  if (mm < 1 || mm > 12) return 'Month must be between 01 and 12';
+  // Days in month (accounting for leap years)
+  const daysInMonth = new Date(yyyy, mm, 0).getDate();
+  if (dd < 1 || dd > daysInMonth) return `Day must be between 01 and ${daysInMonth}`;
+  // Must be at least 16 years old
+  const dob = new Date(yyyy, mm - 1, dd);
+  const age = Math.floor((Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+  if (age < 16) return 'Parent/caregiver must be at least 16 years old';
+  return null;
+};
 
 const getStrength = (pw: string) => {
   if (!pw) return null;
@@ -64,6 +105,9 @@ const lbl: React.CSSProperties = {
 };
 const errStyle: React.CSSProperties = {
   fontSize: '0.7rem', color: '#f87171', marginTop: '0.25rem', fontWeight: 500,
+};
+const hintStyle: React.CSSProperties = {
+  fontSize: '0.67rem', color: 'rgba(255,255,255,0.28)', marginTop: '0.25rem',
 };
 const radioOpt: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: '0.4rem',
@@ -88,17 +132,34 @@ export default function ParentRegisterPage({ onBack, onLoginInstead, onSuccess }
     setErrors(e => ({ ...e, [field]: '' }));
   };
 
+  const handleDOBChange = (raw: string) => {
+    const formatted = formatDOB(raw);
+    set('dateOfBirth', formatted);
+  };
+
+  const handlePhoneChange = (field: 'phone' | 'altPhone', raw: string) => {
+    set(field, formatSAPhone(raw));
+  };
+
   const validateStep = () => {
     const e: Partial<Record<keyof FormData, string>> = {};
     if (step === 1) {
       if (!form.firstName.trim())  e.firstName  = 'Required';
       if (!form.lastName.trim())   e.lastName   = 'Required';
       if (!form.gender)            e.gender     = 'Required';
-      if (!form.dateOfBirth)       e.dateOfBirth = 'Required';
+      const dobErr = validateDOB(form.dateOfBirth);
+      if (dobErr) e.dateOfBirth = dobErr;
       if (!form.relationshipToChildren) e.relationshipToChildren = 'Required';
     }
     if (step === 2) {
-      if (!form.phone.trim())          e.phone   = 'Required';
+      if (!form.phone.trim() || form.phone === '+27') {
+        e.phone = 'Required';
+      } else if (!validateSAPhone(form.phone)) {
+        e.phone = 'Enter a valid SA number: +27 followed by 9 digits';
+      }
+      if (form.altPhone && form.altPhone !== '+27' && !validateSAPhone(form.altPhone)) {
+        e.altPhone = 'Enter a valid SA number: +27 followed by 9 digits';
+      }
       if (!form.physicalAddress.trim()) e.physicalAddress = 'Required';
       if (!form.city.trim())           e.city    = 'Required';
     }
@@ -273,11 +334,20 @@ export default function ParentRegisterPage({ onBack, onLoginInstead, onSuccess }
 
                     <div className="pr-grid-2">
                       <div>
-                        <label style={lbl}>Date of Birth *</label>
-                        <input className={`pr-input${errors.dateOfBirth ? ' err' : ''}`}
-                          type="date" value={form.dateOfBirth}
-                          onChange={e => set('dateOfBirth', e.target.value)} />
-                        {errors.dateOfBirth && <span style={errStyle}>{errors.dateOfBirth}</span>}
+                        <label style={lbl}>Date of Birth * <span style={{ color: 'rgba(255,255,255,0.25)', fontWeight: 400, textTransform: 'none' }}>(dd/mm/yyyy)</span></label>
+                        <input
+                          className={`pr-input${errors.dateOfBirth ? ' err' : ''}`}
+                          type="text"
+                          placeholder="dd/mm/yyyy"
+                          value={form.dateOfBirth}
+                          maxLength={10}
+                          style={{ fontFamily: 'monospace', letterSpacing: '0.5px' }}
+                          onChange={e => handleDOBChange(e.target.value)}
+                        />
+                        {errors.dateOfBirth
+                          ? <span style={errStyle}>{errors.dateOfBirth}</span>
+                          : <span style={hintStyle}>e.g. 15/06/1990</span>
+                        }
                       </div>
                       <div>
                         <label style={lbl}>ID / Passport Number</label>
@@ -328,15 +398,35 @@ export default function ParentRegisterPage({ onBack, onLoginInstead, onSuccess }
                     <div className="pr-grid-2">
                       <div>
                         <label style={lbl}>Primary Phone Number *</label>
-                        <input className={`pr-input${errors.phone ? ' err' : ''}`}
-                          type="tel" placeholder="e.g. 071 234 5678"
-                          value={form.phone} onChange={e => set('phone', e.target.value)} />
-                        {errors.phone && <span style={errStyle}>{errors.phone}</span>}
+                        <input
+                          className={`pr-input${errors.phone ? ' err' : ''}`}
+                          type="tel"
+                          placeholder="+27831234567"
+                          value={form.phone}
+                          maxLength={12}
+                          style={{ fontFamily: 'monospace', letterSpacing: '0.5px' }}
+                          onChange={e => handlePhoneChange('phone', e.target.value)}
+                        />
+                        {errors.phone
+                          ? <span style={errStyle}>{errors.phone}</span>
+                          : <span style={hintStyle}>Format: +27 followed by 9 digits</span>
+                        }
                       </div>
                       <div>
-                        <label style={lbl}>Alternative Phone Number</label>
-                        <input className="pr-input" type="tel" placeholder="Optional"
-                          value={form.altPhone} onChange={e => set('altPhone', e.target.value)} />
+                        <label style={lbl}>Alternative Phone <span style={{ color: 'rgba(255,255,255,0.25)', fontWeight: 400, textTransform: 'none' }}>(optional)</span></label>
+                        <input
+                          className={`pr-input${errors.altPhone ? ' err' : ''}`}
+                          type="tel"
+                          placeholder="+27831234567"
+                          value={form.altPhone}
+                          maxLength={12}
+                          style={{ fontFamily: 'monospace', letterSpacing: '0.5px' }}
+                          onChange={e => handlePhoneChange('altPhone', e.target.value)}
+                        />
+                        {errors.altPhone
+                          ? <span style={errStyle}>{errors.altPhone}</span>
+                          : <span style={hintStyle}>Format: +27 followed by 9 digits</span>
+                        }
                       </div>
                     </div>
 
@@ -604,9 +694,6 @@ html, body, #root { width: 100%; min-height: 100vh; background: #0a2e12; }
 .pr-input.err   { border-color: #f87171 !important; }
 .pr-input::placeholder { color: rgba(255,255,255,0.2); }
 .pr-input option { background: #0d3318; color: #fff; }
-input[type="date"].pr-input::-webkit-calendar-picker-indicator {
-  filter: invert(0.6) sepia(1) saturate(2) hue-rotate(95deg); opacity: 0.5;
-}
 
 .pr-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
 
