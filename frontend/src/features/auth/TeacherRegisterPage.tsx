@@ -28,6 +28,20 @@ const errStyle: React.CSSProperties = {
   fontSize: '0.72rem', color: '#f87171', marginTop: '0.3rem', display: 'block',
 };
 
+// ── SA format helpers ──────────────────────────────────────────────────────────
+const formatSAPhone = (raw: string): string => {
+  let digits = raw.replace(/[^\d]/g, '');
+  if (digits.startsWith('0')) digits = '27' + digits.slice(1);
+  if (!digits.startsWith('27')) digits = '27' + digits;
+  digits = digits.slice(0, 11);
+  return '+' + digits;
+};
+
+const validateSAPhone = (val: string): boolean =>
+  /^\+27\d{9}$/.test(val.replace(/\s/g, ''));
+
+const validateSAID = (val: string): boolean => /^\d{13}$/.test(val);
+
 export default function TeacherRegisterPage({ onBack, onLoginInstead, onSuccess }: TeacherRegisterPageProps) {
   const [step, setStep] = useState<1 | 2>(1);
   const [submitted, setSubmitted] = useState(false);
@@ -36,24 +50,29 @@ export default function TeacherRegisterPage({ onBack, onLoginInstead, onSuccess 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName]   = useState('');
   const [email, setEmail]         = useState('');
-  const [phone, setPhone]         = useState('');
+  const [phone, setPhone]         = useState('+27');
   const [password, setPassword]   = useState('');
   const [confirm, setConfirm]     = useState('');
   const [showPw, setShowPw]       = useState(false);
 
   // Step 2 — teaching details
-  const [idNumber, setIdNumber]           = useState('');
-  const [church, setChurch]               = useState('');
-  const [yearsExp, setYearsExp]           = useState('');
+  const [idNumber, setIdNumber]             = useState('');
+  const [church, setChurch]                 = useState('');
+  const [yearsExp, setYearsExp]             = useState('');
   const [gradesSelected, setGradesSelected] = useState<string[]>([]);
-  const [dbs, setDbs]                     = useState(false);
-  const [safeguarding, setSafeguarding]   = useState(false);
-  const [motivation, setMotivation]       = useState('');
+  const [dbs, setDbs]                       = useState(false);
+  const [safeguarding, setSafeguarding]     = useState(false);
+  const [motivation, setMotivation]         = useState('');
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const toggleGrade = (g: string) =>
     setGradesSelected(prev => prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g]);
+
+  const handlePhoneChange = (raw: string) => {
+    const formatted = formatSAPhone(raw);
+    setPhone(formatted);
+  };
 
   const validateStep1 = () => {
     const e: Record<string, string> = {};
@@ -62,6 +81,7 @@ export default function TeacherRegisterPage({ onBack, onLoginInstead, onSuccess 
     if (!email.trim())      e.email     = 'Email is required.';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = 'Enter a valid email.';
     if (!phone.trim())      e.phone     = 'Phone number is required.';
+    else if (!validateSAPhone(phone)) e.phone = 'Enter a valid SA number: +27 followed by 9 digits.';
     if (!password)          e.password  = 'Password is required.';
     else if (password.length < 8) e.password = 'Password must be at least 8 characters.';
     if (password !== confirm) e.confirm = 'Passwords do not match.';
@@ -71,10 +91,11 @@ export default function TeacherRegisterPage({ onBack, onLoginInstead, onSuccess 
 
   const validateStep2 = () => {
     const e: Record<string, string> = {};
-    if (!idNumber.trim())         e.idNumber    = 'ID number is required.';
-    if (!church.trim())           e.church      = 'Church / ministry name is required.';
-    if (gradesSelected.length === 0) e.grades   = 'Select at least one grade.';
-    if (!motivation.trim())       e.motivation  = 'Please provide a short motivation.';
+    if (!idNumber.trim())            e.idNumber   = 'ID number is required.';
+    else if (!validateSAID(idNumber)) e.idNumber  = 'SA ID must be exactly 13 digits.';
+    if (!church.trim())              e.church     = 'Church / ministry name is required.';
+    if (gradesSelected.length === 0) e.grades     = 'Select at least one grade.';
+    if (!motivation.trim())          e.motivation = 'Please provide a short motivation.';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -85,8 +106,48 @@ export default function TeacherRegisterPage({ onBack, onLoginInstead, onSuccess 
     e.preventDefault();
     if (!validateStep2()) return;
     setSubmitted(true);
-    setTimeout(onSuccess, 1400);
   };
+
+  // ── SUCCESS SCREEN ──────────────────────────────────────────────────────────
+  if (submitted) {
+    return (
+      <>
+        <style>{CSS}</style>
+        <div className="tr-root">
+          <div className="tr-blob tr-blob-1" />
+          <div className="tr-blob tr-blob-2" />
+
+          <div className="tr-card tr-success-card">
+            <div className="tr-success-icon">⏳</div>
+            <h2 className="tr-success-title">Application Submitted!</h2>
+            <p className="tr-success-body">
+              Your teacher registration is under review. A{' '}
+              <strong className="tr-success-admin">Super Admin</strong>{' '}
+              will approve your account before you can sign in. You'll be notified via email once approved.
+            </p>
+
+            <div className="tr-notice" style={{ marginBottom: 0 }}>
+              <span>ℹ</span>
+              <span>This is required for safeguarding and POPIA compliance. Thank you for your patience.</span>
+            </div>
+
+            {/* TESTING ONLY bypass block */}
+            <div className="tr-testing-block">
+              <div className="tr-testing-label">🟢 TESTING ONLY</div>
+              <p className="tr-testing-sub">Bypass approval to preview the teacher dashboard.</p>
+              <button className="tr-btn-testing" onClick={onSuccess}>
+                My Dashboard →
+              </button>
+            </div>
+
+            <button className="tr-btn-primary" onClick={onBack} style={{ marginTop: 4 }}>
+              Back to Sign In
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -157,9 +218,18 @@ export default function TeacherRegisterPage({ onBack, onLoginInstead, onSuccess 
               </div>
 
               <div className="tr-field">
-                <label style={labelStyle}>Phone Number *</label>
-                <input style={{ ...inputStyle, borderColor: errors.phone ? '#f87171' : 'rgba(255,255,255,0.1)' }}
-                  type="tel" placeholder="+27 73 444 5566" value={phone} onChange={e => setPhone(e.target.value)} />
+                <label style={labelStyle}>Phone Number * <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 400 }}>(+27 format)</span></label>
+                <input
+                  style={{ ...inputStyle, fontFamily: 'monospace', letterSpacing: '0.5px', borderColor: errors.phone ? '#f87171' : 'rgba(255,255,255,0.1)' }}
+                  type="tel"
+                  placeholder="+27831234567"
+                  value={phone}
+                  maxLength={12}
+                  onChange={e => handlePhoneChange(e.target.value)}
+                />
+                <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.25rem' }}>
+                  Format: +27 followed by 9 digits &nbsp;·&nbsp; e.g. +27831234567
+                </span>
                 {errors.phone && <span style={errStyle}>{errors.phone}</span>}
               </div>
 
@@ -208,10 +278,17 @@ export default function TeacherRegisterPage({ onBack, onLoginInstead, onSuccess 
 
               <div className="tr-row-2">
                 <div className="tr-field">
-                  <label style={labelStyle}>SA ID Number *</label>
-                  <input style={{ ...inputStyle, borderColor: errors.idNumber ? '#f87171' : 'rgba(255,255,255,0.1)' }}
-                    placeholder="13-digit ID number" value={idNumber} maxLength={13}
-                    onChange={e => setIdNumber(e.target.value.replace(/\D/g, ''))} />
+                  <label style={labelStyle}>SA ID Number * <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 400 }}>(13 digits)</span></label>
+                  <input
+                    style={{ ...inputStyle, fontFamily: 'monospace', letterSpacing: '1px', borderColor: errors.idNumber ? '#f87171' : 'rgba(255,255,255,0.1)' }}
+                    placeholder="e.g. 9001015009087"
+                    value={idNumber}
+                    maxLength={13}
+                    onChange={e => setIdNumber(e.target.value.replace(/\D/g, '').slice(0, 13))}
+                  />
+                  <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.25rem' }}>
+                    13-digit SA ID number, digits only
+                  </span>
                   {errors.idNumber && <span style={errStyle}>{errors.idNumber}</span>}
                 </div>
                 <div className="tr-field">
@@ -279,8 +356,8 @@ export default function TeacherRegisterPage({ onBack, onLoginInstead, onSuccess 
 
               <div style={{ display: 'flex', gap: '0.65rem' }}>
                 <button type="button" onClick={() => setStep(1)} className="tr-btn-ghost">← Back</button>
-                <button type="submit" className="tr-btn-primary" style={{ flex: 1 }} disabled={submitted}>
-                  {submitted ? '✓ Application Submitted!' : 'Submit Application'}
+                <button type="submit" className="tr-btn-primary" style={{ flex: 1 }}>
+                  Submit Application
                 </button>
               </div>
             </form>
@@ -300,8 +377,14 @@ html, body, #root { min-height: 100dvh; width: 100%; background: #060f08; color:
 @keyframes tr-fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
 
 .tr-root {
-  min-height: 100dvh; width: 100%; display: flex; align-items: center; justify-content: center;
-  padding: 24px 16px; position: relative; overflow: hidden;
+  min-height: 100dvh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  position: relative;
+  overflow: hidden;
   background: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(37,99,235,0.18) 0%, transparent 65%), #060f08;
 }
 
@@ -310,13 +393,100 @@ html, body, #root { min-height: 100dvh; width: 100%; background: #060f08; color:
 .tr-blob-2 { width: 300px; height: 300px; background: radial-gradient(circle, rgba(34,197,94,0.06) 0%, transparent 70%); bottom: -80px; left: -60px; }
 
 .tr-card {
-  width: 100%; max-width: 560px; margin: 0 auto;
-  background: rgba(255,255,255,0.028); border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 20px; padding: clamp(24px,4vw,40px);
+  width: 100%;
+  max-width: 560px;
+  background: rgba(255,255,255,0.028);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px;
+  padding: clamp(24px,4vw,40px);
   box-shadow: 0 32px 80px rgba(0,0,0,0.55);
   animation: tr-fadeUp 0.55s ease both;
 }
 
+/* ── SUCCESS CARD ── */
+.tr-success-card {
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 18px;
+}
+
+.tr-success-icon {
+  font-size: 3.2rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 18px rgba(96,165,250,0.3));
+}
+
+.tr-success-title {
+  font-family: 'Sora', sans-serif;
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.4px;
+  line-height: 1.2;
+}
+
+.tr-success-body {
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.55);
+  line-height: 1.65;
+  max-width: 340px;
+}
+
+.tr-success-admin {
+  color: #60a5fa;
+  font-weight: 700;
+}
+
+/* Testing bypass block */
+.tr-testing-block {
+  width: 100%;
+  border: 1.5px dashed rgba(234,179,8,0.4);
+  border-radius: 12px;
+  padding: 16px;
+  background: rgba(234,179,8,0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.tr-testing-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #eab308;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.tr-testing-sub {
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.4);
+}
+
+.tr-btn-testing {
+  width: 100%;
+  padding: 0.72rem;
+  border-radius: 9px;
+  border: 1.5px solid rgba(234,179,8,0.5);
+  background: rgba(234,179,8,0.1);
+  color: #eab308;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 700;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 4px;
+}
+
+.tr-btn-testing:hover {
+  background: rgba(234,179,8,0.18);
+  border-color: #eab308;
+}
+
+/* ── CARD HEADER ── */
 .tr-card-header {
   display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;
 }
@@ -365,6 +535,7 @@ html, body, #root { min-height: 100dvh; width: 100%; background: #060f08; color:
   display: flex; align-items: flex-start; gap: 8px; padding: 10px 14px; border-radius: 9px;
   background: rgba(96,165,250,0.07); border: 1px solid rgba(96,165,250,0.2);
   font-size: 0.8rem; color: rgba(255,255,255,0.5); margin-bottom: 22px; line-height: 1.5;
+  width: 100%;
 }
 .tr-notice span:first-child { color: #60a5fa; flex-shrink: 0; font-size: 1rem; }
 
