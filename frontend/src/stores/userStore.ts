@@ -1,53 +1,81 @@
-// src/stores/userStore.ts
-export type UserRole = 'parent' | 'teacher' | 'super_admin'
+export type UserRole = 'parent' | 'teacher' | 'super_admin';
 
-export interface RegisteredUser {
-  id: string
-  name: string
-  email: string
-  password: string
-  role: UserRole
-  phone: string
-  position?: string
+interface StoredUser {
+  id: string;
+  name: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  phone?: string;
+  position?: string;
+  approved?: boolean;
 }
 
-const SEED_USERS: RegisteredUser[] = [
-  { id: 'u-001', name: 'Nomsa Dlamini',      email: 'parent@demo.church',  password: 'Parent@123',  role: 'parent',      phone: '+27 82 111 2233' },
-  { id: 'u-002', name: 'Thabo Mokoena',      email: 'teacher@demo.church', password: 'Teacher@123', role: 'teacher',     phone: '+27 73 444 5566' },
-  { id: 'u-003', name: 'Pastor Sipho Nkosi', email: 'admin@demo.church',   password: 'Admin@123',   role: 'super_admin', phone: '+27 71 777 8899', position: 'Chairperson' },
-]
+// Seed demo accounts so the demo credentials on LoginPage always work
+const users: StoredUser[] = [
+  { id: 'demo-parent',  name: 'Demo Parent',  email: 'parent@demo.church',  password: 'Parent@123',  role: 'parent',      phone: '0711111111', approved: true },
+  { id: 'demo-teacher', name: 'Demo Teacher', email: 'teacher@demo.church', password: 'Teacher@123', role: 'teacher',     phone: '0722222222', approved: true },
+  { id: 'demo-admin',   name: 'Demo Admin',   email: 'admin@demo.church',   password: 'Admin@123',   role: 'super_admin', phone: '0733333333', position: 'Chairperson', approved: true },
+];
 
-let _users: RegisteredUser[] = [...SEED_USERS]
-let _lastLogin: RegisteredUser | null = null   // ← tracks last successful login
+let lastLoginUser: StoredUser | null = null;
 
 export const userStore = {
-  register(user: Omit<RegisteredUser, 'id'>): RegisteredUser {
-    const newUser: RegisteredUser = { ...user, id: `u-${Date.now()}` }
-    _users = [..._users, newUser]
-    return newUser
-  },
 
-  login(email: string, password: string, role: UserRole): RegisteredUser | null {
-    const found = _users.find(
-      u =>
-        u.email.trim().toLowerCase() === email.trim().toLowerCase() &&
-        u.password === password &&
-        u.role === role
-    ) ?? null
-    if (found) _lastLogin = found   // ← save for App.tsx to read
-    return found
-  },
-
-  // ── Returns whoever last logged in successfully
-  getLastLogin(): RegisteredUser | null {
-    return _lastLogin
+  register(data: Omit<StoredUser, 'id' | 'approved'>) {
+    const user: StoredUser = {
+      ...data,
+      id: Date.now().toString(),
+      approved: data.role === 'teacher' ? false : true,
+    };
+    users.push(user);
+    return user;
   },
 
   emailExists(email: string): boolean {
-    return _users.some(u => u.email.trim().toLowerCase() === email.trim().toLowerCase())
+    return users.some(u => u.email.toLowerCase() === email.toLowerCase());
   },
 
-  getAll() {
-    return [..._users]
+  findByEmail(email: string): StoredUser | undefined {
+    return users.find(u => u.email.toLowerCase() === email.toLowerCase());
   },
-}
+
+  // _role is optional — LoginPage passes it but we find by email+password only
+  login(email: string, password: string, _role?: string): StoredUser | null {
+    const user = users.find(
+      u => u.email.toLowerCase() === email.toLowerCase() && u.password === password,
+    );
+    if (user) {
+      lastLoginUser = user;
+      sessionStorage.setItem('currentUser', JSON.stringify({
+        id:    user.id,
+        name:  user.name,
+        email: user.email,
+        phone: user.phone ?? '',
+        role:  user.role,
+      }));
+    }
+    return user ?? null;
+  },
+
+  getLastLogin(): StoredUser | null {
+    return lastLoginUser;
+  },
+
+  getAll(): StoredUser[] {
+    return [...users];
+  },
+
+  getByRole(role: UserRole): StoredUser[] {
+    return users.filter(u => u.role === role);
+  },
+
+  approveTeacher(id: string): boolean {
+    const user = users.find(u => u.id === id);
+    if (user && user.role === 'teacher') {
+      user.approved = true;
+      return true;
+    }
+    return false;
+  },
+};
