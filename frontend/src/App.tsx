@@ -12,6 +12,7 @@ import ParentDashboard        from './features/dashboard/ParentDashboard';
 import TeacherRegisterPage    from './features/auth/TeacherRegisterPage';
 import TeacherDashboard       from './features/dashboard/TeacherDashboard';
 import ChildRegisterForm      from './features/children/ChildRegisterForm';
+import { userStore }          from './stores/userStore';
 
 type UserRole = 'parent' | 'teacher' | 'super_admin';
 
@@ -39,6 +40,9 @@ export default function App() {
   const [screen, setScreen]               = useState<Screen>('landing');
   const [showRegisterModal, setShowModal] = useState(false);
   const [currentUser, setCurrentUser]     = useState<CurrentUser | null>(null);
+
+  // ── Track logged-in admin info so the dashboard shows the real name/position
+  const [adminInfo, setAdminInfo] = useState({ name: 'Admin', position: 'Super Admin' });
 
   const handleRoleSelected = (role: 'parent' | 'teacher' | 'admin') => {
     setShowModal(false);
@@ -84,6 +88,27 @@ export default function App() {
       {/* ── MAIN LOGIN (all roles) ── */}
       {screen === 'login' && (
         <LoginPage
+          onSuccess={(role) => {
+            if (role === 'super_admin') {
+              // ── Pull the last registered/seeded admin from the store that matches
+              // LoginPage already validated credentials so we just grab from store
+              // We can't pass the user object directly through onSuccess(role) but we
+              // can look them up from sessionStorage or a simple exported getter.
+              // Simplest approach: store the last logged-in user in a module-level ref.
+              // Since userStore is in-memory and login already found the user,
+              // we look up all users and find the most recently relevant one via
+              // a lightweight re-lookup using the email typed (we don't have it here,
+              // so instead we expose a lastLogin getter in userStore).
+              const last = userStore.getLastLogin();
+              if (last) {
+                setAdminInfo({ name: last.name, position: last.position ?? 'Super Admin' });
+              }
+              setScreen('admin-dashboard');
+            }
+            if (role === 'parent')  setScreen('parent-dashboard');
+            if (role === 'teacher') setScreen('parent-dashboard');
+          }}
+          onRegister={() => setShowModal(true)}
           onSuccess={handleLoginSuccess}
           onRegister={() => { setScreen('landing'); setShowModal(true); }}
           onBack={() => setScreen('landing')}

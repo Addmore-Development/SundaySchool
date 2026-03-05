@@ -1,3 +1,4 @@
+// src/stores/userStore.ts
 export type UserRole = 'parent' | 'teacher' | 'super_admin'
 
 export interface RegisteredUser {
@@ -17,6 +18,7 @@ const SEED_USERS: RegisteredUser[] = [
 ]
 
 let _users: RegisteredUser[] = [...SEED_USERS]
+let _lastLogin: RegisteredUser | null = null   // ← tracks last successful login
 
 export const userStore = {
   register(user: Omit<RegisteredUser, 'id'>): RegisteredUser {
@@ -24,14 +26,28 @@ export const userStore = {
     _users = [..._users, newUser]
     return newUser
   },
+
   login(email: string, password: string, role: UserRole): RegisteredUser | null {
-    return _users.find(
-      u => u.email.trim().toLowerCase() === email.trim().toLowerCase() &&
-           u.password === password && u.role === role
+    const found = _users.find(
+      u =>
+        u.email.trim().toLowerCase() === email.trim().toLowerCase() &&
+        u.password === password &&
+        u.role === role
     ) ?? null
+    if (found) _lastLogin = found   // ← save for App.tsx to read
+    return found
   },
+
+  // ── Returns whoever last logged in successfully
+  getLastLogin(): RegisteredUser | null {
+    return _lastLogin
+  },
+
   emailExists(email: string): boolean {
     return _users.some(u => u.email.trim().toLowerCase() === email.trim().toLowerCase())
   },
-  getAll() { return [..._users] },
+
+  getAll() {
+    return [..._users]
+  },
 }
