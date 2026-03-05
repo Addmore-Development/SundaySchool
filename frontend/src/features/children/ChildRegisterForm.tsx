@@ -48,7 +48,6 @@ const EMP    = ["Employed (Full-time)","Employed (Part-time)","Self-employed","U
 
 const today = new Date().toISOString().split('T')[0];
 const MIN_CHILD_DOB = "1990-01-01"; // oldest reasonable child dob
-const MIN_CONTACT_DOB = "1940-01-01"; // oldest reasonable guardian dob
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function isValidDate(v: string, minDate?: string, maxDate?: string): boolean {
