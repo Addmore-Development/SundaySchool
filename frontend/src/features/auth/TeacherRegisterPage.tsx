@@ -1,6 +1,7 @@
 // src/features/auth/TeacherRegisterPage.tsx
 // Teacher registration form — matches the teacher role from RegisterModal.tsx
 // Requires Super Admin approval before access is granted.
+// v2: updated gold/green palette, required SA ID with Luhn checksum, localStorage save
 
 import React, { useState } from 'react';
 
@@ -41,6 +42,20 @@ const validateSAPhone = (val: string): boolean =>
   /^\+27\d{9}$/.test(val.replace(/\s/g, ''));
 
 const validateSAID = (val: string): boolean => /^\d{13}$/.test(val);
+
+const luhnCheck = (val: string): boolean => {
+  if (!/^\d{13}$/.test(val)) return false;
+  let sum = 0;
+  for (let i = 0; i < 13; i++) {
+    let digit = parseInt(val[i], 10);
+    if (i % 2 === 1) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+  }
+  return sum % 10 === 0;
+};
 
 export default function TeacherRegisterPage({ onBack, onLoginInstead, onSuccess }: TeacherRegisterPageProps) {
   const [step, setStep] = useState<1 | 2>(1);
@@ -91,11 +106,12 @@ export default function TeacherRegisterPage({ onBack, onLoginInstead, onSuccess 
 
   const validateStep2 = () => {
     const e: Record<string, string> = {};
-    if (!idNumber.trim())            e.idNumber   = 'ID number is required.';
-    else if (!validateSAID(idNumber)) e.idNumber  = 'SA ID must be exactly 13 digits.';
-    if (!church.trim())              e.church     = 'Church / ministry name is required.';
-    if (gradesSelected.length === 0) e.grades     = 'Select at least one grade.';
-    if (!motivation.trim())          e.motivation = 'Please provide a short motivation.';
+    if (!idNumber.trim())             e.idNumber = 'SA ID Number is required.';
+    else if (!validateSAID(idNumber)) e.idNumber = 'SA ID must be exactly 13 digits.';
+    else if (!luhnCheck(idNumber))    e.idNumber = 'Invalid SA ID number (checksum failed).';
+    if (!church.trim())               e.church     = 'Church / ministry name is required.';
+    if (gradesSelected.length === 0)  e.grades     = 'Select at least one grade.';
+    if (!motivation.trim())           e.motivation = 'Please provide a short motivation.';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -105,6 +121,38 @@ export default function TeacherRegisterPage({ onBack, onLoginInstead, onSuccess 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateStep2()) return;
+
+    // Save to localStorage
+    const profile = {
+      id: `teacher_${Date.now()}`,
+      role: 'teacher',
+      firstName,
+      lastName,
+      name: `${firstName} ${lastName}`,
+      email,
+      phone,
+      idNumber,
+      church,
+      yearsExp,
+      gradesSelected,
+      dbs,
+      safeguarding,
+      motivation,
+      status: 'pending_approval',
+      registeredAt: new Date().toISOString(),
+    };
+
+    try {
+      localStorage.setItem('ssp_current_user', JSON.stringify({
+        id: profile.id,
+        role: 'teacher',
+        name: profile.name,
+        email: profile.email,
+        status: 'pending_approval',
+      }));
+      localStorage.setItem('ssp_teacher_profile', JSON.stringify(profile));
+    } catch {}
+
     setSubmitted(true);
   };
 
@@ -127,13 +175,13 @@ export default function TeacherRegisterPage({ onBack, onLoginInstead, onSuccess 
             </p>
 
             <div className="tr-notice" style={{ marginBottom: 0 }}>
-              <span>ℹ</span>
+              <span>i</span>
               <span>This is required for safeguarding and POPIA compliance. Thank you for your patience.</span>
             </div>
 
             {/* TESTING ONLY bypass block */}
             <div className="tr-testing-block">
-              <div className="tr-testing-label">🟢 TESTING ONLY</div>
+              <div className="tr-testing-label">TESTING ONLY</div>
               <p className="tr-testing-sub">Bypass approval to preview the teacher dashboard.</p>
               <button className="tr-btn-testing" onClick={onSuccess}>
                 My Dashboard →
@@ -154,7 +202,6 @@ export default function TeacherRegisterPage({ onBack, onLoginInstead, onSuccess 
       <style>{CSS}</style>
       <div className="tr-root">
 
-        {/* Decorative blobs */}
         <div className="tr-blob tr-blob-1" />
         <div className="tr-blob tr-blob-2" />
 
@@ -185,7 +232,7 @@ export default function TeacherRegisterPage({ onBack, onLoginInstead, onSuccess 
 
           {/* Approval notice */}
           <div className="tr-notice">
-            <span>ℹ</span>
+            <span>i</span>
             <span>Teacher accounts require approval from a Super Admin before access is granted.</span>
           </div>
 
@@ -221,14 +268,11 @@ export default function TeacherRegisterPage({ onBack, onLoginInstead, onSuccess 
                 <label style={labelStyle}>Phone Number * <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 400 }}>(+27 format)</span></label>
                 <input
                   style={{ ...inputStyle, fontFamily: 'monospace', letterSpacing: '0.5px', borderColor: errors.phone ? '#f87171' : 'rgba(255,255,255,0.1)' }}
-                  type="tel"
-                  placeholder="+27831234567"
-                  value={phone}
-                  maxLength={12}
+                  type="tel" placeholder="+27831234567" value={phone} maxLength={12}
                   onChange={e => handlePhoneChange(e.target.value)}
                 />
                 <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.25rem' }}>
-                  Format: +27 followed by 9 digits &nbsp;·&nbsp; e.g. +27831234567
+                  Format: +27 followed by 9 digits · e.g. +27831234567
                 </span>
                 {errors.phone && <span style={errStyle}>{errors.phone}</span>}
               </div>
@@ -239,8 +283,7 @@ export default function TeacherRegisterPage({ onBack, onLoginInstead, onSuccess 
                   <div style={{ position: 'relative' }}>
                     <input
                       style={{ ...inputStyle, paddingRight: '2.8rem', borderColor: errors.password ? '#f87171' : 'rgba(255,255,255,0.1)' }}
-                      type={showPw ? 'text' : 'password'}
-                      placeholder="Min 8 characters"
+                      type={showPw ? 'text' : 'password'} placeholder="Min 8 characters"
                       value={password} onChange={e => setPassword(e.target.value)}
                     />
                     <button type="button" onClick={() => setShowPw(v => !v)}
@@ -278,7 +321,9 @@ export default function TeacherRegisterPage({ onBack, onLoginInstead, onSuccess 
 
               <div className="tr-row-2">
                 <div className="tr-field">
-                  <label style={labelStyle}>SA ID Number * <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 400 }}>(13 digits)</span></label>
+                  <label style={labelStyle}>
+                    SA ID Number * <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 400 }}>(13 digits)</span>
+                  </label>
                   <input
                     style={{ ...inputStyle, fontFamily: 'monospace', letterSpacing: '1px', borderColor: errors.idNumber ? '#f87171' : 'rgba(255,255,255,0.1)' }}
                     placeholder="e.g. 9001015009087"
@@ -286,8 +331,8 @@ export default function TeacherRegisterPage({ onBack, onLoginInstead, onSuccess 
                     maxLength={13}
                     onChange={e => setIdNumber(e.target.value.replace(/\D/g, '').slice(0, 13))}
                   />
-                  <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.25rem' }}>
-                    13-digit SA ID number, digits only
+                  <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.25rem', display: 'block' }}>
+                    e.g. 9001015009087 (13 digits)
                   </span>
                   {errors.idNumber && <span style={errStyle}>{errors.idNumber}</span>}
                 </div>
@@ -313,11 +358,8 @@ export default function TeacherRegisterPage({ onBack, onLoginInstead, onSuccess 
                 <label style={labelStyle}>Grades You Can Teach * <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 400 }}>(select all that apply)</span></label>
                 <div className="tr-grade-grid">
                   {GRADES_TAUGHT.map(g => (
-                    <button
-                      key={g} type="button"
-                      onClick={() => toggleGrade(g)}
-                      className={`tr-grade-btn${gradesSelected.includes(g) ? ' tr-grade-btn--active' : ''}`}
-                    >
+                    <button key={g} type="button" onClick={() => toggleGrade(g)}
+                      className={`tr-grade-btn${gradesSelected.includes(g) ? ' tr-grade-btn--active' : ''}`}>
                       {g}
                     </button>
                   ))}
@@ -332,7 +374,7 @@ export default function TeacherRegisterPage({ onBack, onLoginInstead, onSuccess 
                 { label: 'I have completed safeguarding training', value: safeguarding, set: setSafeguarding },
               ].map(({ label, value, set }) => (
                 <div key={label} onClick={() => set(!value)} className={`tr-toggle-row${value ? ' tr-toggle-row--active' : ''}`}>
-                  <div className="tr-toggle-dot" style={{ background: value ? '#60a5fa' : 'rgba(255,255,255,0.08)', borderColor: value ? '#60a5fa' : 'rgba(255,255,255,0.15)' }}>
+                  <div className="tr-toggle-dot" style={{ background: value ? '#f0c000' : 'rgba(255,255,255,0.08)', borderColor: value ? '#f0c000' : 'rgba(255,255,255,0.15)' }}>
                     {value && '✓'}
                   </div>
                   <span style={{ fontSize: '0.875rem', color: value ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.5)' }}>{label}</span>
@@ -356,9 +398,7 @@ export default function TeacherRegisterPage({ onBack, onLoginInstead, onSuccess 
 
               <div style={{ display: 'flex', gap: '0.65rem' }}>
                 <button type="button" onClick={() => setStep(1)} className="tr-btn-ghost">← Back</button>
-                <button type="submit" className="tr-btn-primary" style={{ flex: 1 }}>
-                  Submit Application
-                </button>
+                <button type="submit" className="tr-btn-primary" style={{ flex: 1 }}>Submit Application</button>
               </div>
             </form>
           )}
@@ -372,133 +412,59 @@ const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body, #root { min-height: 100dvh; width: 100%; background: #060f08; color: #fff; font-family: 'DM Sans', sans-serif; -webkit-font-smoothing: antialiased; }
+html, body, #root { min-height: 100dvh; width: 100%; background: #071a0d; color: #fff; font-family: 'DM Sans', sans-serif; -webkit-font-smoothing: antialiased; }
 
 @keyframes tr-fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
 
 .tr-root {
-  min-height: 100dvh;
-  width: 100vw;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px 16px;
-  position: relative;
-  overflow: hidden;
-  background: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(37,99,235,0.18) 0%, transparent 65%), #060f08;
+  min-height: 100dvh; width: 100vw;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px 16px; position: relative; overflow: hidden;
+  background: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(240,192,0,0.1) 0%, transparent 65%), #071a0d;
 }
 
 .tr-blob { position: absolute; border-radius: 50%; pointer-events: none; }
-.tr-blob-1 { width: 400px; height: 400px; background: radial-gradient(circle, rgba(96,165,250,0.07) 0%, transparent 70%); top: -120px; right: -80px; }
-.tr-blob-2 { width: 300px; height: 300px; background: radial-gradient(circle, rgba(34,197,94,0.06) 0%, transparent 70%); bottom: -80px; left: -60px; }
+.tr-blob-1 { width: 400px; height: 400px; background: radial-gradient(circle, rgba(240,192,0,0.07) 0%, transparent 70%); top: -120px; right: -80px; }
+.tr-blob-2 { width: 300px; height: 300px; background: radial-gradient(circle, rgba(52,211,153,0.05) 0%, transparent 70%); bottom: -80px; left: -60px; }
 
 .tr-card {
-  width: 100%;
-  max-width: 560px;
-  background: rgba(255,255,255,0.028);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 20px;
-  padding: clamp(24px,4vw,40px);
-  box-shadow: 0 32px 80px rgba(0,0,0,0.55);
-  animation: tr-fadeUp 0.55s ease both;
+  width: 100%; max-width: 560px;
+  background: rgba(10,36,16,0.9); border: 1px solid rgba(240,192,0,0.12);
+  border-radius: 20px; padding: clamp(24px,4vw,40px);
+  box-shadow: 0 32px 80px rgba(0,0,0,0.55); animation: tr-fadeUp 0.55s ease both;
 }
 
-/* ── SUCCESS CARD ── */
-.tr-success-card {
-  max-width: 460px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 18px;
-}
+.tr-success-card { max-width: 460px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 18px; }
+.tr-success-icon { font-size: 3.2rem; line-height: 1; filter: drop-shadow(0 0 18px rgba(240,192,0,0.3)); }
+.tr-success-title { font-family: 'Sora', sans-serif; font-size: 1.55rem; font-weight: 800; color: #fff; letter-spacing: -0.4px; line-height: 1.2; }
+.tr-success-body { font-size: 0.9rem; color: rgba(255,255,255,0.55); line-height: 1.65; max-width: 340px; }
+.tr-success-admin { color: #f0c000; font-weight: 700; }
 
-.tr-success-icon {
-  font-size: 3.2rem;
-  line-height: 1;
-  filter: drop-shadow(0 0 18px rgba(96,165,250,0.3));
-}
-
-.tr-success-title {
-  font-family: 'Sora', sans-serif;
-  font-size: 1.55rem;
-  font-weight: 800;
-  color: #fff;
-  letter-spacing: -0.4px;
-  line-height: 1.2;
-}
-
-.tr-success-body {
-  font-size: 0.9rem;
-  color: rgba(255,255,255,0.55);
-  line-height: 1.65;
-  max-width: 340px;
-}
-
-.tr-success-admin {
-  color: #60a5fa;
-  font-weight: 700;
-}
-
-/* Testing bypass block */
 .tr-testing-block {
-  width: 100%;
-  border: 1.5px dashed rgba(234,179,8,0.4);
-  border-radius: 12px;
-  padding: 16px;
-  background: rgba(234,179,8,0.04);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
+  width: 100%; border: 1.5px dashed rgba(240,192,0,0.4); border-radius: 12px;
+  padding: 16px; background: rgba(240,192,0,0.04);
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
 }
-
-.tr-testing-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #eab308;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
-
-.tr-testing-sub {
-  font-size: 0.8rem;
-  color: rgba(255,255,255,0.4);
-}
-
+.tr-testing-label { font-size: 0.75rem; font-weight: 700; color: #f0c000; letter-spacing: 1px; text-transform: uppercase; }
+.tr-testing-sub { font-size: 0.8rem; color: rgba(255,255,255,0.4); }
 .tr-btn-testing {
-  width: 100%;
-  padding: 0.72rem;
-  border-radius: 9px;
-  border: 1.5px solid rgba(234,179,8,0.5);
-  background: rgba(234,179,8,0.1);
-  color: #eab308;
-  font-family: 'DM Sans', sans-serif;
-  font-weight: 700;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-top: 4px;
+  width: 100%; padding: 0.72rem; border-radius: 9px;
+  border: 1.5px solid rgba(240,192,0,0.5); background: rgba(240,192,0,0.1);
+  color: #f0c000; font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 0.875rem;
+  cursor: pointer; transition: all 0.2s; margin-top: 4px;
 }
+.tr-btn-testing:hover { background: rgba(240,192,0,0.18); border-color: #f0c000; }
 
-.tr-btn-testing:hover {
-  background: rgba(234,179,8,0.18);
-  border-color: #eab308;
-}
-
-/* ── CARD HEADER ── */
-.tr-card-header {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;
-}
+.tr-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
 .tr-brand { display: flex; align-items: center; gap: 11px; }
 .tr-brand-badge {
   width: 42px; height: 42px; border-radius: 11px;
-  background: linear-gradient(135deg, #60a5fa, #2563eb);
+  background: linear-gradient(135deg, #f0c000, #c89a00);
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.2rem; box-shadow: 0 0 0 4px rgba(96,165,250,0.14); flex-shrink: 0;
+  font-size: 1.2rem; box-shadow: 0 0 0 4px rgba(240,192,0,0.14); flex-shrink: 0;
 }
 .tr-brand-name { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 15px; color: #fff; letter-spacing: -0.2px; line-height: 1.2; }
-.tr-brand-sub  { font-size: 11px; color: rgba(184,212,193,0.55); text-transform: uppercase; letter-spacing: 0.6px; margin-top: 2px; }
+.tr-brand-sub  { font-size: 11px; color: rgba(255,255,255,0.38); text-transform: uppercase; letter-spacing: 0.6px; margin-top: 2px; }
 .tr-back {
   background: none; border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.5);
   font-family: 'DM Sans', sans-serif; font-size: 12.5px; padding: 7px 14px; border-radius: 8px;
@@ -506,46 +472,33 @@ html, body, #root { min-height: 100dvh; width: 100%; background: #060f08; color:
 }
 .tr-back:hover { color: #fff; border-color: rgba(255,255,255,0.28); }
 
-/* Steps */
-.tr-steps {
-  display: flex; align-items: center; gap: 0; margin-bottom: 20px;
-  position: relative; padding-bottom: 2px;
-}
-.tr-step-line {
-  position: absolute; top: 15px; left: 15px; right: 15px; height: 2px;
-  background: rgba(255,255,255,0.08); z-index: 0;
-}
-.tr-step {
-  display: flex; align-items: center; gap: 8px; flex: 1; position: relative; z-index: 1;
-}
+.tr-steps { display: flex; align-items: center; gap: 0; margin-bottom: 20px; position: relative; padding-bottom: 2px; }
+.tr-step-line { position: absolute; top: 15px; left: 15px; right: 15px; height: 2px; background: rgba(255,255,255,0.08); z-index: 0; }
+.tr-step { display: flex; align-items: center; gap: 8px; flex: 1; position: relative; z-index: 1; }
 .tr-step-num {
   width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   font-size: 0.8rem; font-weight: 700; border: 2px solid rgba(255,255,255,0.15);
-  background: #060f08; color: rgba(255,255,255,0.35); transition: all 0.3s;
+  background: #071a0d; color: rgba(255,255,255,0.35); transition: all 0.3s;
 }
-.tr-step--active .tr-step-num  { border-color: #60a5fa; background: rgba(96,165,250,0.15); color: #60a5fa; }
+.tr-step--active .tr-step-num  { border-color: #f0c000; background: rgba(240,192,0,0.15); color: #f0c000; }
 .tr-step--done   .tr-step-num  { border-color: #34d399; background: rgba(52,211,153,0.15); color: #34d399; }
 .tr-step-label   { font-size: 0.78rem; font-weight: 600; color: rgba(255,255,255,0.35); transition: color 0.3s; }
-.tr-step--active .tr-step-label { color: #60a5fa; }
+.tr-step--active .tr-step-label { color: #f0c000; }
 .tr-step--done   .tr-step-label { color: #34d399; }
 
-/* Notice */
 .tr-notice {
   display: flex; align-items: flex-start; gap: 8px; padding: 10px 14px; border-radius: 9px;
-  background: rgba(96,165,250,0.07); border: 1px solid rgba(96,165,250,0.2);
-  font-size: 0.8rem; color: rgba(255,255,255,0.5); margin-bottom: 22px; line-height: 1.5;
-  width: 100%;
+  background: rgba(240,192,0,0.07); border: 1px solid rgba(240,192,0,0.2);
+  font-size: 0.8rem; color: rgba(255,255,255,0.5); margin-bottom: 22px; line-height: 1.5; width: 100%;
 }
-.tr-notice span:first-child { color: #60a5fa; flex-shrink: 0; font-size: 1rem; }
+.tr-notice span:first-child { color: #f0c000; flex-shrink: 0; font-size: 1rem; }
 
-/* Form */
 .tr-form { display: flex; flex-direction: column; gap: 14px; }
 .tr-section-label { font-size: 0.68rem; font-weight: 700; color: rgba(255,255,255,0.3); letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
 .tr-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 .tr-field { display: flex; flex-direction: column; }
 
-/* Grade grid */
 .tr-grade-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.4rem; }
 .tr-grade-btn {
   padding: 0.35rem 0.85rem; border-radius: 20px;
@@ -553,31 +506,28 @@ html, body, #root { min-height: 100dvh; width: 100%; background: #060f08; color:
   color: rgba(255,255,255,0.45); font-size: 0.78rem; font-weight: 600; cursor: pointer;
   font-family: 'DM Sans', sans-serif; transition: all 0.15s;
 }
-.tr-grade-btn:hover         { border-color: rgba(96,165,250,0.3); color: rgba(255,255,255,0.75); }
-.tr-grade-btn--active       { background: rgba(96,165,250,0.12); border-color: #60a5fa; color: #60a5fa; }
+.tr-grade-btn:hover { border-color: rgba(240,192,0,0.3); color: rgba(255,255,255,0.75); }
+.tr-grade-btn--active { background: rgba(240,192,0,0.12); border-color: #f0c000; color: #f0c000; }
 
-/* Toggle rows */
 .tr-toggle-row {
   display: flex; align-items: flex-start; gap: 0.85rem; padding: 0.85rem 1rem;
   border-radius: 10px; cursor: pointer;
   background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); transition: all 0.2s;
 }
-.tr-toggle-row--active { background: rgba(96,165,250,0.07); border-color: rgba(96,165,250,0.25); }
+.tr-toggle-row--active { background: rgba(240,192,0,0.07); border-color: rgba(240,192,0,0.25); }
 .tr-toggle-dot {
   width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 0.65rem; color: #042a15; font-weight: 900;
-  border: 2px solid; transition: all 0.2s;
+  font-size: 0.65rem; color: #071a0d; font-weight: 900; border: 2px solid; transition: all 0.2s;
 }
 
-/* Buttons */
 .tr-btn-primary {
   width: 100%; padding: 0.82rem; border-radius: 9px; border: none;
-  background: linear-gradient(135deg, #60a5fa 0%, #2563eb 100%);
-  color: #fff; font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 0.9rem;
-  cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 20px rgba(96,165,250,0.25);
+  background: linear-gradient(135deg, #f0c000 0%, #c89a00 100%);
+  color: #071a0d; font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 0.9rem;
+  cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 20px rgba(240,192,0,0.25);
 }
-.tr-btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(96,165,250,0.38); }
+.tr-btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(240,192,0,0.38); background: linear-gradient(135deg, #ffd200 0%, #f0c000 100%); }
 .tr-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .tr-btn-ghost {
@@ -596,15 +546,15 @@ html, body, #root { min-height: 100dvh; width: 100%; background: #060f08; color:
 
 .tr-login-row { text-align: center; font-size: 13px; color: rgba(255,255,255,0.35); margin-top: 4px; }
 .tr-link-btn {
-  background: none; border: none; color: #60a5fa; cursor: pointer;
+  background: none; border: none; color: #f0c000; cursor: pointer;
   font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
   padding: 0; text-decoration: underline; text-underline-offset: 2px; transition: opacity 0.18s;
 }
 .tr-link-btn:hover { opacity: 0.75; }
 
 input::placeholder, textarea::placeholder { color: rgba(255,255,255,0.22); }
-input:focus, select:focus, textarea:focus { border-color: #60a5fa !important; outline: none; box-shadow: 0 0 0 3px rgba(96,165,250,0.12); }
-select option { background: #0a1628; color: #fff; }
+input:focus, select:focus, textarea:focus { border-color: #f0c000 !important; outline: none; box-shadow: 0 0 0 3px rgba(240,192,0,0.12); }
+select option { background: #0a2410; color: #fff; }
 
 @media (max-width: 520px) {
   .tr-row-2 { grid-template-columns: 1fr; }
