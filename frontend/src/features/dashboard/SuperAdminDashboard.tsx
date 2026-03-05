@@ -70,7 +70,7 @@ export default function SuperAdminDashboard({ adminName: adminNameProp = 'Admin'
   const [smsSent, setSmsSent]             = useState(false);
   const [familySearch, setFamilySearch]   = useState('');
   const [newFam, setNewFam]               = useState<Partial<FamilyRecord>>({});
-  const [exportFormat, setExportFormat]   = useState<Record<string, 'pdf'|'csv'|'excel'>>({});
+
   // Live-synced user lists — refreshed on approval or tab switch
   const [allUsers, setAllUsers] = useState(() => userStore.getAll());
 
@@ -163,9 +163,7 @@ export default function SuperAdminDashboard({ adminName: adminNameProp = 'Admin'
     setAddFamily(false);
   };
 
-  const getExportFmt = (key: string) => exportFormat[key] || 'pdf';
-  const setExportFmt = (key: string, fmt: 'pdf'|'csv'|'excel') =>
-    setExportFormat(p => ({ ...p, [key]: fmt }));
+
 
   const NAV: { id: Tab; icon: string; label: string; badge?: number }[] = [
     { id:'overview',  icon:'📊', label:'Overview' },

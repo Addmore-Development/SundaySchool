@@ -66,7 +66,7 @@ const STYLES = `
 
 const GRADES = ['Grade R', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Multiple Grades'];
 
-export default function TeacherRegisterPage({ onBack, onLoginInstead, onSuccess }: Props) {
+export default function TeacherRegisterPage({ onBack, onLoginInstead }: Props) {
   const [form, setForm] = useState({
     name: '', surname: '', email: '', password: '', confirm: '',
     phone: '', grades: '', experience: '',
