@@ -2,6 +2,9 @@
 import { useState, useMemo } from 'react';
 import { userStore } from '../../stores/userStore';
 import { childStore, type StoredChild } from '../../stores/ChildStore';
+import ReportsTab from './ReportsTab';  // ← NEW IMPORT
+import ComplianceDashboard from './ComplianceDashboard';
+import { complianceStore } from '../../stores/complianceStore';
 
 interface Props {
   adminName?: string;
@@ -10,7 +13,7 @@ interface Props {
   onRegisterChild?: () => void;
 }
 
-type Tab = 'overview' | 'teachers' | 'family' | 'children' | 'welfare' | 'reports' | 'settings';
+type Tab = 'overview' | 'teachers' | 'family' | 'children' | 'welfare' | 'reports' | 'compliance' | 'settings';
 
 interface WelfareFlag {
   id: string; childName: string; concern: string;
@@ -52,7 +55,6 @@ export default function SuperAdminDashboard({ adminName: adminNameProp = 'Admin'
   // Read session — written by both LoginPage and SuperAdminRegisterPage
   const _session = (() => { try { return JSON.parse(sessionStorage.getItem('currentUser') || '{}'); } catch { return {}; } })();
   const adminName     = _session.name     || adminNameProp;
-  // Use position from session first, then fall back to prop
   const adminPosition = _session.position || adminPositionProp;
 
   const [activeTab, setActiveTab]         = useState<Tab>('overview');
@@ -104,14 +106,37 @@ export default function SuperAdminDashboard({ adminName: adminNameProp = 'Admin'
 
   const initials = adminName.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0,2);
 
+  // Log sensitive actions to audit trail — _session already declared at top of component
+  const logAudit = (action: Parameters<typeof complianceStore.log>[0]['action'], targetId?: string, targetName?: string, detail?: string) => {
+    complianceStore.log({
+      actorId: _session.id || 'u-admin-001',
+      actorName: adminName,
+      actorRole: 'super_admin',
+      action, targetId, targetName, detail,
+    });
+  };
+
   const handleApprove = (id: string) => {
+    const t = allUsers.find(u => u.id === id);
+    logAudit('APPROVE_TEACHER', id, t?.name);
     userStore.approveTeacher(id);
-    refreshUsers();   // re-render immediately so badge and table update
+    refreshUsers();
     setApprovingId(id);
     setTimeout(() => setApprovingId(null), 1500);
   };
 
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const handleReject = (id: string) => {
+    const t = allUsers.find(u => u.id === id);
+    logAudit('REJECT_TEACHER', id, t?.name);
+    userStore.rejectTeacher(id);
+    setRejectingId(id);
+    setTimeout(() => { setRejectingId(null); refreshUsers(); }, 1200);
+  };
+
   const resolveWelfare = (id: string) => {
+    const flag = welfareList.find(w => w.id === id);
+    logAudit('RESOLVE_WELFARE_FLAG', id, flag?.childName);
     setWelfareList(prev => prev.map(w => w.id === id ? { ...w, resolved: true } : w));
   };
 
@@ -163,8 +188,6 @@ export default function SuperAdminDashboard({ adminName: adminNameProp = 'Admin'
     setAddFamily(false);
   };
 
-
-
   const NAV: { id: Tab; icon: string; label: string; badge?: number }[] = [
     { id:'overview',  icon:'📊', label:'Overview' },
     { id:'teachers',  icon:'🧑‍🏫', label:'Teachers',  badge: pending.length || 0 },
@@ -172,6 +195,7 @@ export default function SuperAdminDashboard({ adminName: adminNameProp = 'Admin'
     { id:'children',  icon:'👶', label:'Children' },
     { id:'welfare',   icon:'🛡️', label:'Welfare',   badge: openWelfare.length || 0 },
     { id:'reports',   icon:'📄', label:'Reports' },
+    { id:'compliance',icon:'🔒', label:'Compliance' },
     { id:'settings',  icon:'⚙️', label:'Settings' },
   ];
 
@@ -257,6 +281,8 @@ export default function SuperAdminDashboard({ adminName: adminNameProp = 'Admin'
         .btn-approve:hover { background:rgba(52,211,153,0.2); }
         .btn-resolve { background:rgba(156,163,175,0.1); color:#9ca3af; border:1px solid rgba(156,163,175,0.22); }
         .btn-resolve:hover { background:rgba(156,163,175,0.2); }
+        .btn-reject { background:rgba(224,82,82,0.08); color:#e05252; border:1px solid rgba(224,82,82,0.22); }
+        .btn-reject:hover { background:rgba(224,82,82,0.18); }
         .btn-view { background:rgba(240,192,0,0.08); color:#f0c000; border:1px solid rgba(240,192,0,0.2); }
         .btn-view:hover { background:rgba(240,192,0,0.15); }
         .btn-edit { background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.6); border:1px solid rgba(255,255,255,0.12); }
@@ -293,16 +319,6 @@ export default function SuperAdminDashboard({ adminName: adminNameProp = 'Admin'
         /* ── Empty state ── */
         .sad-empty { text-align:center; padding:2.5rem 1rem; color:rgba(255,255,255,0.22); font-size:0.82rem; }
 
-        /* ── Report card ── */
-        .report-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; }
-        .report-card { background:rgba(0,0,0,0.2); border:1px solid rgba(240,192,0,0.12); border-radius:10px; padding:1.25rem; display:flex; flex-direction:column; gap:0.5rem; }
-        .report-card-title { font-family:'Bebas Neue',sans-serif; font-size:0.9rem; letter-spacing:1.2px; color:#f0c000; }
-        .report-card-desc { font-size:0.75rem; color:rgba(255,255,255,0.4); line-height:1.5; flex:1; }
-        .fmt-row { display:flex; gap:0.35rem; margin-top:0.25rem; }
-        .fmt-btn { flex:1; padding:0.28rem 0; border-radius:4px; border:1px solid rgba(255,255,255,0.1); background:transparent; color:rgba(255,255,255,0.4); font-family:'DM Sans',sans-serif; font-size:0.65rem; font-weight:700; cursor:pointer; transition:all 0.15s; text-align:center; }
-        .fmt-btn.act { background:rgba(240,192,0,0.15); color:#f0c000; border-color:rgba(240,192,0,0.35); }
-        .fmt-btn:hover:not(.act) { border-color:rgba(255,255,255,0.25); color:rgba(255,255,255,0.7); }
-
         /* ── Inline edit form ── */
         .edit-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; }
         .edit-lbl { font-size:0.65rem; font-weight:700; color:rgba(255,255,255,0.35); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:0.3rem; }
@@ -312,8 +328,8 @@ export default function SuperAdminDashboard({ adminName: adminNameProp = 'Admin'
         @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.3;} }
 
         /* ── Responsive ── */
-        @media (max-width:960px) { .sad-stats { grid-template-columns:1fr 1fr; } .report-grid { grid-template-columns:1fr 1fr; } }
-        @media (max-width:600px) { .sad-stats { grid-template-columns:1fr; } .sad-modal-grid { grid-template-columns:1fr; } .report-grid { grid-template-columns:1fr; } .sad-content { padding:1rem; } .edit-grid { grid-template-columns:1fr; } }
+        @media (max-width:960px) { .sad-stats { grid-template-columns:1fr 1fr; } }
+        @media (max-width:600px) { .sad-stats { grid-template-columns:1fr; } .sad-modal-grid { grid-template-columns:1fr; } .sad-content { padding:1rem; } .edit-grid { grid-template-columns:1fr; } }
         select option { background:#0a2410; }
       `}</style>
 
@@ -497,7 +513,8 @@ export default function SuperAdminDashboard({ adminName: adminNameProp = 'Admin'
                 {activeTab === 'family'    && 'Family Accounts'}
                 {activeTab === 'children'  && 'Registered Children'}
                 {activeTab === 'welfare'   && 'Welfare & Safeguarding'}
-                {activeTab === 'reports'   && 'Reports & Exports'}
+                {activeTab === 'reports'   && 'Reports & Decisions'}
+                {activeTab === 'compliance'&& 'POPIA & Safeguarding'}
                 {activeTab === 'settings'  && 'Settings'}
               </div>
               <div className="sad-page-sub">Logged in as {adminName} · {adminPosition}</div>
@@ -557,7 +574,12 @@ export default function SuperAdminDashboard({ adminName: adminNameProp = 'Admin'
                           {pending.slice(0,4).map(t => (
                             <tr key={t.id}>
                               <td>{t.name}<br/><span style={{ fontSize:'0.68rem', color:'rgba(255,255,255,0.3)' }}>{t.email}</span></td>
-                              <td><button className="btn-sm btn-approve" onClick={() => handleApprove(t.id)}>{approvingId === t.id ? '✓ Done' : 'Approve'}</button></td>
+                              <td>
+                                <div style={{ display:'flex', gap:'0.35rem' }}>
+                                  <button className="btn-sm btn-approve" onClick={() => handleApprove(t.id)}>{approvingId === t.id ? '✓ Approved' : 'Approve'}</button>
+                                  <button className="btn-sm btn-reject" onClick={() => handleReject(t.id)}>{rejectingId === t.id ? '✗ Rejected' : 'Reject'}</button>
+                                </div>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -661,7 +683,14 @@ export default function SuperAdminDashboard({ adminName: adminNameProp = 'Admin'
                             <td>{t.sessions}</td>
                             <td>{t.flags > 0 ? <span className="pill yellow">{t.flags}</span> : <span style={{ color:'rgba(255,255,255,0.3)' }}>0</span>}</td>
                             <td>{t.approved ? <span className="pill green">✓ Approved</span> : <span className="pill grey">⏳ Pending</span>}</td>
-                            <td>{!t.approved && <button className="btn-sm btn-approve" onClick={() => handleApprove(t.id)}>{approvingId === t.id ? '✓ Done!' : 'Approve'}</button>}</td>
+                            <td>
+                              {!t.approved && (
+                                <div style={{ display:'flex', gap:'0.35rem' }}>
+                                  <button className="btn-sm btn-approve" onClick={() => handleApprove(t.id)}>{approvingId === t.id ? '✓ Done!' : 'Approve'}</button>
+                                  <button className="btn-sm btn-reject" onClick={() => handleReject(t.id)}>{rejectingId === t.id ? '✗ Rejected' : 'Reject'}</button>
+                                </div>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -751,7 +780,7 @@ export default function SuperAdminDashboard({ adminName: adminNameProp = 'Admin'
                       <tbody>
                         {filteredChildren.map(c => (
                           <tr key={c.id} style={{ cursor:'pointer' }}
-                            onClick={() => { childStore.markSeen(c.id); setSelectedChild(c); refreshChildren(); }}>
+                            onClick={() => { childStore.markSeen(c.id); setSelectedChild(c); refreshChildren(); logAudit('VIEW_CHILD_PROFILE', c.id, `${c.firstName} ${c.lastName}`); }}>
                             <td style={{ fontWeight:600 }}>
                               {c.isNew && <span style={{ display:'inline-block', background:'#f0c000', color:'#071a0d', fontSize:'0.55rem', fontWeight:900, padding:'1px 5px', borderRadius:4, marginRight:5, verticalAlign:'middle', letterSpacing:'0.5px' }}>NEW</span>}
                               {c.firstName} {c.lastName}
@@ -769,7 +798,7 @@ export default function SuperAdminDashboard({ adminName: adminNameProp = 'Admin'
                             <td>{c.consentActivities==='Yes' && c.consentMedical==='Yes' ? <span className="pill green">✓ Full</span> : <span className="pill grey">Incomplete</span>}</td>
                             <td>{(c.welfareFlags??0)===0 ? <span className="pill green">None</span> : <span className="pill red">{c.welfareFlags} flags</span>}</td>
                             <td style={{ fontSize:'0.75rem', color:'rgba(255,255,255,0.45)' }}>{c.registeredDate}</td>
-                            <td><button className="btn-sm btn-view" onClick={e => { e.stopPropagation(); childStore.markSeen(c.id); setSelectedChild(c); refreshChildren(); }}>View</button></td>
+                            <td><button className="btn-sm btn-view" onClick={e => { e.stopPropagation(); childStore.markSeen(c.id); setSelectedChild(c); refreshChildren(); logAudit('VIEW_CHILD_PROFILE', c.id, `${c.firstName} ${c.lastName}`); }}>View</button></td>
                           </tr>
                         ))}
                       </tbody>
@@ -833,93 +862,27 @@ export default function SuperAdminDashboard({ adminName: adminNameProp = 'Admin'
             )}
 
             {/* ════════════ REPORTS ════════════ */}
+            {/* ↓↓↓ REPLACED with the new ReportsTab component ↓↓↓ */}
             {activeTab === 'reports' && (
-              <>
-                {/* Term Summary */}
-                <div className="sad-card" style={{ marginBottom:'1.5rem' }}>
-                  <div className="sad-card-head"><span className="sad-card-title">Term Summary</span></div>
-                  <div className="sad-card-body">
-                    <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'1rem' }}>
-                      {[
-                        { label:'Total Children', value:childrenData.length },
-                        { label:'Avg Attendance', value:`${avgAttendance}%` },
-                        { label:'Total Meals Served', value:totalFed },
-                        { label:'Welfare Cases', value:welfareList.length },
-                      ].map(s => (
-                        <div key={s.label} style={{ background:'rgba(0,0,0,0.2)', borderRadius:9, padding:'0.875rem', border:'1px solid rgba(255,255,255,0.06)' }}>
-                          <div style={{ fontSize:'0.62rem', color:'rgba(255,255,255,0.3)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:'0.35rem' }}>{s.label}</div>
-                          <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:'1.6rem', color:'#f0c000' }}>{s.value}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+              <ReportsTab
+                childrenData={childrenData}
+                welfareList={welfareList}
+                teachers={teachers}
+                families={mergedFamilies}
+                avgAttendance={avgAttendance}
+                totalFed={totalFed}
+              />
+            )}
 
-                {/* Report Cards Grid */}
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'1rem' }}>
-                  {[
-                    { key:'attendance', title:'Attendance Report',         desc:'Weekly attendance per child and per grade. Identifies chronic absentees for pastoral follow-up.',              icon:'📊' },
-                    { key:'feeding',    title:'Feeding Scheme Report',     desc:'Number of children fed per session and cumulative totals. For donor reporting and planning.',                icon:'🍽️' },
-                    { key:'welfare',    title:'Welfare Report',            desc:'All flagged welfare concerns with severity, status and resolution notes. POPIA-compliant.',                  icon:'🛡️' },
-                    { key:'children',  title:'Child Registration Summary', desc:'Complete list of registered learners with consent status, medical alerts and contact details.',              icon:'👶' },
-                    { key:'teachers',  title:'Teacher Activity Report',    desc:'Attendance marking frequency, welfare flags raised, and session participation per teacher.',                 icon:'🧑‍🏫' },
-                    { key:'impact',    title:'Impact Report (Donor)',      desc:'High-level summary for donors — children served, meals provided, welfare interventions.',                    icon:'📄' },
-                  ].map(r => (
-                    <div key={r.key} style={{
-                      background:'rgba(0,0,0,0.2)',
-                      border:'1px solid rgba(240,192,0,0.12)',
-                      borderRadius:12,
-                      padding:'1.5rem',
-                      display:'flex',
-                      flexDirection:'column',
-                      gap:'0.6rem',
-                    }}>
-                      {/* Icon */}
-                      <div style={{ fontSize:'2rem', lineHeight:1, marginBottom:'0.25rem' }}>{r.icon}</div>
-
-                      {/* Title */}
-                      <div style={{
-                        fontFamily:"'Bebas Neue',sans-serif",
-                        fontSize:'0.95rem',
-                        letterSpacing:'1.5px',
-                        color:'#f0c000',
-                      }}>{r.title}</div>
-
-                      {/* Description */}
-                      <div style={{
-                        fontSize:'0.78rem',
-                        color:'rgba(255,255,255,0.45)',
-                        lineHeight:1.55,
-                        flex:1,
-                      }}>{r.desc}</div>
-
-                      {/* Three export buttons side by side */}
-                      <div style={{ display:'flex', gap:'0.5rem', marginTop:'0.5rem' }}>
-                        {(['PDF','CSV','Excel'] as const).map(fmt => (
-                          <button key={fmt} style={{
-                            flex:1,
-                            padding:'0.5rem 0',
-                            borderRadius:6,
-                            border:'1px solid rgba(240,192,0,0.25)',
-                            background:'rgba(240,192,0,0.07)',
-                            color:'#f0c000',
-                            fontFamily:"'DM Sans',sans-serif",
-                            fontSize:'0.75rem',
-                            fontWeight:700,
-                            cursor:'pointer',
-                            transition:'all 0.15s',
-                          }}
-                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background='rgba(240,192,0,0.18)'; }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background='rgba(240,192,0,0.07)'; }}
-                          >
-                            {fmt}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
+            {/* ════════════ COMPLIANCE ════════════ */}
+            {activeTab === 'compliance' && (
+              <ComplianceDashboard
+                currentUser={{
+                  id: _session.id || 'u-admin-001',
+                  name: adminName,
+                  role: 'super_admin',
+                }}
+              />
             )}
 
             {/* ════════════ SETTINGS ════════════ */}

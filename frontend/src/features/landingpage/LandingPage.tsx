@@ -24,8 +24,6 @@ const FEATURES = [
 ];
 
 // ── Gallery ────────────────────────────────────────────────────────────────────
-// Replace each array with your 3 actual imported photos or asset URLs.
-// The set shown rotates every 7 days based on the ISO week number.
 const GALLERY_SETS: string[][] = [
   [
     'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?w=600&q=80',
@@ -54,12 +52,11 @@ function getWeekGallery(): string[] {
 // ── Donation form ──────────────────────────────────────────────────────────────
 const DONATION_AMOUNTS = ['R50', 'R100', 'R250', 'R500', 'R1000', 'Other'];
 
-// SA phone: +27 followed by exactly 9 digits
 const formatSAPhone = (raw: string): string => {
   let digits = raw.replace(/[^\d]/g, '');
   if (digits.startsWith('0')) digits = '27' + digits.slice(1);
   if (!digits.startsWith('27')) digits = '27' + digits;
-  digits = digits.slice(0, 11); // 27 + 9
+  digits = digits.slice(0, 11);
   return '+' + digits;
 };
 const validateSAPhone = (val: string) =>
@@ -204,13 +201,15 @@ const DonationForm: React.FC<DonationFormProps> = ({ onClose }) => {
                 </label>
                 <textarea
                   className="lp-donate-input lp-donate-textarea"
-                  placeholder="Share a word of encouragement or dedication..."
-                  value={message} onChange={e => setMessage(e.target.value)}
+                  placeholder="A note with your donation…"
+                  value={message}
+                  onChange={e => setMessage(e.target.value)}
                 />
               </div>
 
               <div className="lp-donate-popia">
-                🔒 Your details are protected under POPIA and used only for donation processing.
+                🔒 Your personal information is processed in accordance with POPIA. It will only be
+                used to confirm your donation and send your receipt.
               </div>
 
               <button type="submit" className="lp-donate-btn-primary">
@@ -272,7 +271,6 @@ const LandingPage: React.FC<LandingPageProps> = ({
 
         {/* ── Hero content ── */}
         <div className="landing__hero-content">
-          {/* No <br /> — flex-direction: column on the h1 removes the gap */}
           <h1 className="landing__hero-heading">
             <span className="landing__hero-heading--white">Empowering the</span>
             <span className="landing__hero-heading--gold">Next Generation</span>
@@ -348,50 +346,24 @@ const LandingPage: React.FC<LandingPageProps> = ({
         </div>
       </section>
 
-      {/* ══ FOOTER ════════════════════════════════════════════ */}
+      {/* ══ FOOTER — slim, no social links ════════════════════ */}
       <footer className="landing__footer">
-
-        {/* Logo */}
-        <div className="landing__footer-logo-wrap">
-          <div className="landing__footer-logo">SS</div>
-          <span className="landing__footer-logo-name">Sunday School Portal</span>
+        <div className="landing__footer-inner">
+          <div className="landing__footer-left">
+            <div className="landing__footer-logo">SS</div>
+            <span className="landing__footer-logo-name">Sunday School Portal</span>
+          </div>
+          <div className="landing__footer-mid">
+            <span>064 017 6321</span>
+            <span className="landing__footer-sep">·</span>
+            <span>info@sundayschoolportal.co.za</span>
+            <span className="landing__footer-sep">·</span>
+            <span className="landing__footer-hours">SUNDAYS 08:00–13:00</span>
+          </div>
+          <p className="landing__footer-copy">
+            © {new Date().getFullYear()} Sunday School Portal · All rights reserved
+          </p>
         </div>
-
-        {/* Phone + email */}
-        <div className="landing__footer-contact">
-          <span className="landing__footer-phone">064 017 6321</span>
-          <span className="landing__footer-phone">info@sundayschoolportal.co.za</span>
-        </div>
-
-        {/* Social icons */}
-        <div className="landing__footer-socials">
-          {/* Instagram */}
-          <a href="#" className="landing__footer-social" aria-label="Instagram">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
-              <circle cx="12" cy="12" r="4"/>
-              <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" stroke="none"/>
-            </svg>
-          </a>
-          {/* Facebook */}
-          <a href="#" className="landing__footer-social" aria-label="Facebook">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
-            </svg>
-          </a>
-          {/* Twitter / X */}
-          <a href="#" className="landing__footer-social" aria-label="Twitter">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M23 3a10.9 10.9 0 0 1-3.14 1.53A4.48 4.48 0 0 0 16 2a4.48 4.48 0 0 0-4.48 5.01A12.75 12.75 0 0 1 3 3.13a4.48 4.48 0 0 0 1.39 5.97A4.44 4.44 0 0 1 2.4 8.5v.06a4.48 4.48 0 0 0 3.59 4.39 4.5 4.5 0 0 1-2.02.08 4.48 4.48 0 0 0 4.18 3.11A9 9 0 0 1 2 19.54a12.75 12.75 0 0 0 6.91 2.02c8.3 0 12.84-6.88 12.84-12.85 0-.2 0-.39-.02-.58A9.18 9.18 0 0 0 24 5.55a9 9 0 0 1-2.6.71 4.48 4.48 0 0 0 1.96-2.47z"/>
-            </svg>
-          </a>
-        </div>
-
-        {/* Copyright */}
-        <p className="landing__footer-copy">
-          ©Sunday School Portal {new Date().getFullYear()} | All rights reserved.
-        </p>
-
       </footer>
 
       {/* ══ DONATION MODAL ════════════════════════════════════ */}
