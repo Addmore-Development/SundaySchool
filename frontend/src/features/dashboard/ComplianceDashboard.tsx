@@ -10,10 +10,7 @@
 import { useState, useMemo } from 'react';
 import {
   complianceStore,
-  type AuditEntry,
-  type DataRequest,
-  type MandatoryWelfareReport,
-  type WelfareReportStatus,
+  type WelfareReportStatus,  // FIX: removed unused AuditEntry, DataRequest, MandatoryWelfareReport
 } from '../../stores/complianceStore';
 
 interface CurrentUser {
@@ -106,7 +103,7 @@ const cardTitle: React.CSSProperties = {
   fontFamily: "'Bebas Neue',sans-serif",
   fontSize: '0.95rem', letterSpacing: '1.5px', color: '#f0c000',
 };
-const cardBody: React.CSSProperties = { padding: '1.25rem' };
+// FIX: removed unused cardBody
 const tbl: React.CSSProperties = { width: '100%', borderCollapse: 'collapse' };
 const th: React.CSSProperties = {
   fontSize: '0.6rem', fontWeight: 700, color: 'rgba(255,255,255,0.28)',
@@ -137,11 +134,12 @@ const btnGold: React.CSSProperties = {
   fontFamily: "'DM Sans',sans-serif", fontSize: '0.8rem',
   fontWeight: 700, cursor: 'pointer',
 };
+// FIX: removed duplicate 'border' key — keep only the shorthand via the cast
 const btnSm = (col: string): React.CSSProperties => ({
-  padding: '0.3rem 0.75rem', borderRadius: 5, border: 'none',
+  padding: '0.3rem 0.75rem', borderRadius: 5,
   fontFamily: "'DM Sans',sans-serif", fontSize: '0.72rem',
   fontWeight: 700, cursor: 'pointer',
-  background: `${col}18`, color: col, border: `1px solid ${col}30` as any,
+  background: `${col}18`, color: col, border: `1px solid ${col}30`,
 });
 const empty: React.CSSProperties = {
   textAlign: 'center', padding: '2.5rem 1rem',
@@ -157,8 +155,8 @@ const lbl: React.CSSProperties = {
 
 // 1. Audit Trail
 function AuditTrailPanel() {
-  const [search, setSearch]       = useState('');
-  const [roleFilter, setRoleFilter] = useState('all');
+  const [search, setSearch]           = useState('');
+  const [roleFilter, setRoleFilter]   = useState('all');
   const [actionFilter, setActionFilter] = useState('all');
 
   const allEntries = complianceStore.getAuditLog(200);
@@ -243,14 +241,15 @@ function AuditTrailPanel() {
 
 // 2. POPIA Data Requests
 function DataRequestsPanel({ currentUser }: { currentUser: CurrentUser }) {
-  const [showForm, setShowForm]       = useState(false);
-  const [resolveId, setResolveId]     = useState<string | null>(null);
-  const [resolution, setResolution]   = useState('');
-  const [reqType, setReqType]         = useState<'ACCESS' | 'CORRECTION' | 'DELETION'>('ACCESS');
-  const [reqDesc, setReqDesc]         = useState('');
-  const [reqName, setReqName]         = useState('');
-  const [reqEmail, setReqEmail]       = useState('');
-  const [refresh, setRefresh]         = useState(0);
+  const [showForm, setShowForm]     = useState(false);
+  const [resolveId, setResolveId]   = useState<string | null>(null);
+  const [resolution, setResolution] = useState('');
+  const [reqType, setReqType]       = useState<'ACCESS' | 'CORRECTION' | 'DELETION'>('ACCESS');
+  const [reqDesc, setReqDesc]       = useState('');
+  const [reqName, setReqName]       = useState('');
+  const [reqEmail, setReqEmail]     = useState('');
+  // FIX: removed unused 'refresh' state — use a key trick or just remove it
+  const [, forceUpdate]             = useState(0);
 
   const requests = complianceStore.getAllDataRequests();
   const pending  = requests.filter(r => r.status === 'PENDING' || r.status === 'IN_PROGRESS');
@@ -272,7 +271,7 @@ function DataRequestsPanel({ currentUser }: { currentUser: CurrentUser }) {
       detail: `${reqType} request submitted`,
     });
     setShowForm(false); setReqName(''); setReqEmail(''); setReqDesc('');
-    setRefresh(r => r + 1);
+    forceUpdate(n => n + 1);
   };
 
   const handleResolve = (id: string, reject = false) => {
@@ -287,7 +286,7 @@ function DataRequestsPanel({ currentUser }: { currentUser: CurrentUser }) {
       detail: reject ? `Rejected: ${resolution}` : `Resolved: ${resolution}`,
     });
     setResolveId(null); setResolution('');
-    setRefresh(r => r + 1);
+    forceUpdate(n => n + 1);
   };
 
   const TYPE_LABELS = { ACCESS: 'Right of Access', CORRECTION: 'Correction', DELETION: 'Right to Delete' };
@@ -407,20 +406,21 @@ function DataRequestsPanel({ currentUser }: { currentUser: CurrentUser }) {
 
 // 3. Mandatory Welfare Reports
 function WelfareReportsPanel({ currentUser }: { currentUser: CurrentUser }) {
-  const [showForm, setShowForm]     = useState(false);
-  const [childName, setChildName]   = useState('');
-  const [childId, setChildId]       = useState('');
-  const [concern, setConcern]       = useState('');
-  const [severity, setSeverity]     = useState<'low' | 'medium' | 'high'>('medium');
-  const [witnessed, setWitnessed]   = useState('');
-  const [actionTaken, setActionTaken] = useState('');
-  const [referred, setReferred]     = useState(false);
+  const [showForm, setShowForm]         = useState(false);
+  const [childName, setChildName]       = useState('');
+  const [childId, setChildId]           = useState('');
+  const [concern, setConcern]           = useState('');
+  const [severity, setSeverity]         = useState<'low' | 'medium' | 'high'>('medium');
+  const [witnessed, setWitnessed]       = useState('');
+  const [actionTaken, setActionTaken]   = useState('');
+  const [referred, setReferred]         = useState(false);
   const [referralDetail, setReferralDetail] = useState('');
-  const [expandId, setExpandId]     = useState<string | null>(null);
-  const [updateId, setUpdateId]     = useState<string | null>(null);
-  const [updateNote, setUpdateNote] = useState('');
+  const [expandId, setExpandId]         = useState<string | null>(null);
+  const [updateId, setUpdateId]         = useState<string | null>(null);
+  const [updateNote, setUpdateNote]     = useState('');
   const [updateStatus, setUpdateStatus] = useState<WelfareReportStatus>('UNDER_REVIEW');
-  const [refresh, setRefresh]       = useState(0);
+  // FIX: removed unused 'refresh' state
+  const [, forceUpdate]                 = useState(0);
 
   const reports = complianceStore.getAllWelfareReports();
   const open    = reports.filter(r => r.status !== 'RESOLVED');
@@ -450,7 +450,7 @@ function WelfareReportsPanel({ currentUser }: { currentUser: CurrentUser }) {
     setShowForm(false);
     setChildName(''); setChildId(''); setConcern(''); setWitnessed('');
     setActionTaken(''); setReferred(false); setReferralDetail('');
-    setRefresh(r => r + 1);
+    forceUpdate(n => n + 1);
   };
 
   const handleUpdateStatus = () => {
@@ -465,7 +465,7 @@ function WelfareReportsPanel({ currentUser }: { currentUser: CurrentUser }) {
       detail: `Status updated to ${updateStatus}${updateNote ? ': ' + updateNote : ''}`,
     });
     setUpdateId(null); setUpdateNote('');
-    setRefresh(r => r + 1);
+    forceUpdate(n => n + 1);
   };
 
   const STATUS_LABELS: Record<WelfareReportStatus, string> = {
@@ -707,15 +707,15 @@ function AccessControlPanel() {
 
 // 5. POPIA compliance summary cards
 function POPIASummaryCards() {
-  const auditCount    = complianceStore.getAuditLog(9999).length;
-  const pendingReqs   = complianceStore.getPendingDataRequests().length;
-  const openReports   = complianceStore.getOpenWelfareReports().length;
+  const auditCount  = complianceStore.getAuditLog(9999).length;
+  const pendingReqs = complianceStore.getPendingDataRequests().length;
+  const openReports = complianceStore.getOpenWelfareReports().length;
 
   const items = [
-    { label: 'Audit Entries', value: auditCount, sub: 'All access logged', color: '#60a5fa' },
-    { label: 'Pending Data Requests', value: pendingReqs, sub: 'POPIA right to access', color: pendingReqs > 0 ? '#fbbf24' : '#34d399' },
-    { label: 'Open Welfare Reports', value: openReports, sub: 'Mandatory reporting', color: openReports > 0 ? '#e05252' : '#34d399' },
-    { label: 'Compliance Status', value: 'Active', sub: 'POPIA · Children\'s Act', color: '#34d399' },
+    { label: 'Audit Entries',          value: auditCount,   sub: 'All access logged',      color: '#60a5fa' },
+    { label: 'Pending Data Requests',  value: pendingReqs,  sub: 'POPIA right to access',  color: pendingReqs > 0 ? '#fbbf24' : '#34d399' },
+    { label: 'Open Welfare Reports',   value: openReports,  sub: 'Mandatory reporting',    color: openReports > 0 ? '#e05252' : '#34d399' },
+    { label: 'Compliance Status',      value: 'Active',     sub: "POPIA · Children's Act", color: '#34d399' },
   ];
 
   return (
